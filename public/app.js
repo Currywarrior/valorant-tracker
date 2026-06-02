@@ -1,0 +1,1408 @@
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  player: { name: '', tag: '' },
+  storeTimer: null,
+  maps: {},
+  ownedSkins: new Set(),
+  collectionLoaded: false,
+  allCollectionSkins: []
+};
+
+// 依售價推算稀有度
+function costToTier(cost) {
+  if (cost <= 875)  return 'select';
+  if (cost <= 1275) return 'deluxe';
+  if (cost <= 1775) return 'premium';
+  if (cost <= 2175) return 'ultra';
+  return 'exclusive';
+}
+
+// 依 contentTierUuid 推算稀有度
+const TIER_UUID = {
+  '12683d76-48d7-84a3-4e09-6985794f0445': 'select',
+  '0cebb8be-46d7-c12a-d306-e9907bfc5a25': 'deluxe',
+  '60bca009-4182-7998-dee7-b8a2558dc369': 'premium',
+  '411e4a55-4e59-7757-41f0-86a53f101bb5': 'ultra',
+  'e046854e-406c-37f4-6607-19a9ba8426fc': 'exclusive',
+};
+function uuidToTier(uuid) { return uuid ? TIER_UUID[uuid.toLowerCase()] || null : null; }
+
+async function submitBundlePrice(btn, themeUuid, name) {
+  const row = btn.closest('.pending-bundle-row');
+  const input = row.querySelector('.pending-bundle-input');
+  const price = parseInt(input.value, 10);
+  if (!price || price <= 0) { input.style.borderColor = 'var(--accent)'; return; }
+  btn.disabled = true;
+  btn.textContent = '儲存中...';
+  try {
+    const r = await fetch('/api/bundle-price', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ themeUuid, price, name }),
+    });
+    if (!r.ok) throw new Error();
+    row.innerHTML = `<span class="pending-bundle-saved">${name}：${price.toLocaleString()} VP 已儲存</span>`;
+    setTimeout(() => { state.collectionLoaded = false; loadCollection(); }, 600);
+  } catch {
+    btn.disabled = false;
+    btn.textContent = '確認';
+    input.style.borderColor = 'var(--accent)';
+  }
+}
+
+// ─── 願望清單（wishlist）從 localStorage 初始化 ───
+// 頁面載入時立即讀取，不需要等登入
+const WISHLIST_KEY = 'val-wishlist';
+
+function getWishlist() {
+  try {
+    return JSON.parse(localStorage.getItem(WISHLIST_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveWishlist(list) {
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+}
+
+function toggleWishlist(uuid) {
+  const list = getWishlist();
+  const idx = list.indexOf(uuid);
+  if (idx === -1) {
+    list.push(uuid);
+  } else {
+    list.splice(idx, 1);
+  }
+  saveWishlist(list);
+  return list.includes(uuid); // 回傳「現在是否在清單內」
+}
+
+// ─── 初始化 ───
+
+async function init() {
+  // 注入移動格線背景
+  const bg = document.createElement('div');
+  bg.className = 'bg-grid';
+  document.body.prepend(bg);
+
+  // 平行：快取地圖圖片 + 確認 session 狀態
+  const [_, status] = await Promise.all([
+    cacheMaps(),
+    apiFetch('/api/auth/status')
+  ]);
+
+  if (status.loggedIn) {
+    onLoginSuccess({ gameName: status.gameName });
+  } else {
+    $('loginModal').classList.remove('hidden');
+  }
+
+  setupListeners();
+}
+
+async function cacheMaps() {
+  try {
+    const res = await fetch('https://valorant-api.com/v1/maps');
+    const json = await res.json();
+    json.data.forEach(m => {
+      // splash 是寬版背景圖，listViewIcon 是縮圖；都試著存
+      state.maps[m.displayName] = m.splash || m.listViewIcon || '';
+    });
+  } catch {
+    // 地圖圖片快取失敗不影響主功能，跳過
+  }
+}
+
+// ─── 事件綁定 ───
+
+function setupListeners() {
+  $('loginForm').addEventListener('submit', handleLogin);
+
+  $('togglePassword').addEventListener('click', () => {
+    const input = $('password');
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    $('eyeIcon').style.opacity = isHidden ? '0.4' : '1';
+  });
+  $('mfaBtn').addEventListener('click', handleMfa);
+  $('logoutBtn').addEventListener('click', handleLogout);
+  $('refreshStoreBtn').addEventListener('click', loadStore);
+
+  // ─── Tab 滑動指示條 ───
+  const navTabs = document.querySelector('.nav-tabs');
+  const indicator = document.createElement('div');
+  indicator.className = 'tab-indicator';
+  navTabs.appendChild(indicator);
+
+  function moveIndicator(btn) {
+    const navRect = navTabs.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    indicator.style.left  = `${btnRect.left - navRect.left}px`;
+    indicator.style.width = `${btnRect.width}px`;
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      moveIndicator(btn);
+      switchTab(btn.dataset.tab);
+    });
+  });
+
+  // 等 DOM 算完位置後設初始位置
+  requestAnimationFrame(() => {
+    const activeBtn = document.querySelector('.tab-btn.active');
+    if (activeBtn) moveIndicator(activeBtn);
+  });
+
+  $('playerIdInput').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const raw = $('playerIdInput').value.trim();
+    const [name, tag] = raw.split('#');
+    if (name && tag) {
+      state.player = { name: name.trim(), tag: tag.trim() };
+      if (!$('matchesTab').classList.contains('hidden')) loadMatches();
+    }
+  });
+}
+
+// ─── 認證 ───
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = $('loginBtn');
+  const errEl = $('loginError');
+  btn.textContent = '登入中...';
+  btn.disabled = true;
+  errEl.textContent = '';
+
+  const data = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      username: $('username').value.trim(),
+      password: $('password').value,
+      region: $('regionSelect').value
+    })
+  });
+
+  btn.textContent = '登入';
+  btn.disabled = false;
+
+  if (data.error) {
+    const msgs = {
+      AUTH_FAILED: '帳號或密碼錯誤，或 Riot 暫時封鎖了此登入方式',
+      MISSING_FIELDS: '請填入所有欄位',
+      TOO_MANY_REQUESTS: '登入嘗試太頻繁，請等 15 分鐘後再試',
+    };
+    errEl.textContent = msgs[data.error] || '登入失敗';
+    return;
+  }
+
+  // MFA 二步驟驗證
+  if (data.mfa) {
+    $('loginForm').style.display = 'none';
+    $('mfaSection').style.display = 'block';
+    errEl.textContent = '請查看你的 Email 或 Authenticator App，輸入 6 位數驗證碼';
+    errEl.style.color = '#aaa';
+    return;
+  }
+
+  onLoginSuccess(data);
+}
+
+async function handleMfa() {
+  const btn = $('mfaBtn');
+  const errEl = $('loginError');
+  const code = $('mfaCode').value.trim();
+  if (!code) { errEl.textContent = '請輸入驗證碼'; errEl.style.color = '#ff4655'; return; }
+
+  btn.textContent = '驗證中...';
+  btn.disabled = true;
+  errEl.textContent = '';
+
+  const data = await apiFetch('/api/auth/mfa', {
+    method: 'POST',
+    body: JSON.stringify({ code })
+  });
+
+  btn.textContent = '確認驗證碼';
+  btn.disabled = false;
+
+  if (data.error) {
+    errEl.style.color = '#ff4655';
+    errEl.textContent = data.error === 'MFA_FAILED' ? '驗證碼錯誤或已過期，請重新嘗試' : '驗證失敗';
+    return;
+  }
+
+  onLoginSuccess(data);
+}
+
+
+function onLoginSuccess(data) {
+  $('loginModal').classList.add('hidden');
+  $('app').classList.remove('hidden');
+
+  if (data.gameName) {
+    const parts = data.gameName.split('#');
+    if (parts.length === 2) {
+      state.player = { name: parts[0], tag: parts[1] };
+      $('playerIdInput').value = data.gameName;
+    }
+  }
+
+  // 顯示玩家名稱到 profileHeader（先用 gameName 填）
+  if (data.gameName) {
+    const parts = data.gameName.split('#');
+    $('profileName').textContent = parts[0] || '--';
+    $('profileTag').textContent = parts[1] ? `#${parts[1]}` : '';
+  }
+
+  // 並行載入商店 + profile + 擁有物品清單
+  loadStore();
+  loadProfile();
+  loadInventory();
+  window.initAgentPeek?.();
+  window.initKillFeed?.();
+}
+
+async function handleLogout() {
+  await apiFetch('/api/auth/logout', { method: 'POST' });
+
+  if (state.storeTimer) { clearInterval(state.storeTimer); state.storeTimer = null; }
+  state.player = { name: '', tag: '' };
+
+  $('app').classList.add('hidden');
+  $('profileHeader').classList.add('hidden');
+  $('loginModal').classList.remove('hidden');
+  $('loginError').textContent = '';
+  $('storeGrid').innerHTML = '';
+  $('matchesList').innerHTML = '';
+  $('historyList').innerHTML = '';
+  $('collectionGrid').innerHTML = '';
+  $('collectionCount').textContent = '';
+  $('matchStats').classList.add('hidden');
+  state.collectionLoaded = false;
+  document.querySelector('.night-market-section')?.remove();
+
+  // 重置回商店 tab
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-tab="store"]').classList.add('active');
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.add('hidden'));
+  $('storeTab').classList.remove('hidden');
+}
+
+// ─── Tab 切換 ───
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.add('hidden'));
+
+  const tabEl = $(`${tab}Tab`);
+  tabEl.classList.remove('hidden');
+  tabEl.classList.remove('tab-animate');
+  void tabEl.offsetWidth; // 強制 reflow，讓動畫重新觸發
+  tabEl.classList.add('tab-animate');
+
+  if (tab === 'matches' && state.player.name) loadMatches();
+  if (tab === 'history') loadHistory();
+  if (tab === 'collection') loadCollection();
+  if (tab === 'bundles') loadBundleCatalog();
+}
+
+// ─── 玩家 Profile（rank + wallet） ───
+
+async function loadProfile() {
+  try {
+    // 並行抓 rank 和 wallet，都失敗也不影響其他功能
+    const [rankData, walletData] = await Promise.all([
+      apiFetch('/api/rank').catch(() => null),
+      apiFetch('/api/wallet').catch(() => null)
+    ]);
+
+    // 填入段位資訊
+    if (rankData && !rankData.error) {
+      const tierNameEl = $('profileTierName');
+      const tierRREl = $('profileRR');
+      const rankIconEl = $('profileRankIcon');
+
+      tierNameEl.textContent = rankData.tierName || 'Unrated';
+      tierRREl.textContent = `${rankData.rr ?? '--'} RR`;
+
+      // 設定段位顏色（用 data-tier 屬性對應 CSS）
+      const tierSlug = (rankData.tierName || '').toLowerCase().split(' ')[0];
+      tierNameEl.setAttribute('data-tier', tierSlug);
+
+      if (rankData.tierIcon) {
+        rankIconEl.src = rankData.tierIcon;
+        rankIconEl.style.display = '';
+      }
+    }
+
+    // 填入貨幣餘額（亂碼效果）
+    if (walletData && !walletData.error) {
+      animateScramble($('profileVP'), (walletData.vp ?? 0).toLocaleString());
+      animateScramble($('profileRP'), (walletData.rp ?? 0).toLocaleString());
+    }
+
+    // 顯示 profile header，各區塊依序滑入
+    $('profileHeader').classList.remove('hidden');
+    const parts = $('profileHeader').querySelectorAll('.profile-rank, .profile-player, .profile-currency');
+    parts.forEach((el, i) => {
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.animation = `profileSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${i * 110}ms both`;
+    });
+  } catch {
+    // profile 載入失敗不阻塞主功能，靜默跳過
+  }
+}
+
+// ─── 擁有皮膚清單 ───
+
+async function loadInventory() {
+  try {
+    const data = await apiFetch('/api/inventory');
+    if (!data.ownedUuids) return;
+
+    state.ownedSkins = new Set(data.ownedUuids);
+
+    // 商店卡片可能已渲染，補上標記
+    document.querySelectorAll('.skin-card[data-uuid]').forEach(card => {
+      if (state.ownedSkins.has(card.dataset.uuid)) {
+        markCardAsOwned(card);
+      }
+    });
+  } catch {}
+}
+
+function markCardAsOwned(card) {
+  if (card.classList.contains('is-owned')) return;
+  card.classList.add('is-owned');
+  const wrap = card.querySelector('.skin-img-wrap');
+  if (wrap && !wrap.querySelector('.owned-badge')) {
+    const badge = document.createElement('div');
+    badge.className = 'owned-badge';
+    badge.textContent = '已擁有';
+    wrap.appendChild(badge);
+  }
+}
+
+// ─── 我的收藏 ───
+
+async function loadCollection() {
+  if (state.collectionLoaded) {
+    renderCollection($('collectionSearch').value.trim(), $('collectionWeaponFilter').value);
+    return;
+  }
+
+  $('collectionGrid').innerHTML = '<div class="state-msg">正在讀取收藏清單...</div>';
+  $('collectionCount').textContent = '';
+
+  const data = await apiFetch('/api/collection');
+
+  if (data.error) {
+    $('collectionGrid').innerHTML = `<div class="error-state">載入失敗（${data.error}）</div>`;
+    return;
+  }
+
+  state.allCollectionSkins = data.skins || [];
+  state.collectionLoaded = true;
+
+  // 移除舊的 notice / spending bar / pending panel
+  document.querySelector('.collection-notice')?.remove();
+  document.querySelector('.spending-bar')?.remove();
+  document.querySelector('.pending-bundles-panel')?.remove();
+
+  if (data.mode === 'loadout') {
+    const notice = document.createElement('div');
+    notice.className = 'collection-notice';
+    notice.innerHTML = '目前只顯示各武器目前裝備的皮膚。點左上角<strong>登出</strong>，再使用<strong>「瀏覽器登入」</strong>可查看完整收藏。';
+    $('collectionTab').insertBefore(notice, $('collectionGrid'));
+  }
+
+  if (data.mode === 'full') {
+    const bar = document.createElement('div');
+    bar.className = 'spending-bar';
+    const actualVP = data.totalActualVP ?? data.totalVP ?? 0;
+    const savedVP = (data.totalVP ?? 0) - actualVP;
+    const pendingBundles = data.pendingBundles ?? [];
+    const savedStr = savedVP > 0 ? ` <span class="spending-saved">(省 ${savedVP.toLocaleString()})</span>` : '';
+    const pendingNote = pendingBundles.length > 0
+      ? `<span class="spending-pending"> (含估計值，${pendingBundles.length} 個組合包待輸入包價)</span>` : '';
+    bar.innerHTML = `
+      <div class="spending-stat">
+        <div class="spending-stat-val">
+          <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png" class="spending-vp-icon" alt="VP">
+          ${(data.totalVP ?? 0).toLocaleString()}
+        </div>
+        <div class="spending-stat-label">庫存價值 VP</div>
+      </div>
+      <div class="spending-divider"></div>
+      <div class="spending-stat">
+        <div class="spending-stat-val">
+          <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png" class="spending-vp-icon" alt="VP">
+          ${actualVP.toLocaleString()}${savedStr}${pendingNote}
+        </div>
+        <div class="spending-stat-label">實際花費 VP</div>
+      </div>
+      <div class="spending-divider"></div>
+      <div class="spending-stat">
+        <div class="spending-stat-val">
+          <img src="https://media.valorant-api.com/currencies/e59aa87c-4cbf-517a-5983-6e81511be9b7/displayicon.png" class="spending-vp-icon" alt="RP">
+          ${(data.totalRP ?? 0).toLocaleString()}
+        </div>
+        <div class="spending-stat-label">已用 R 點</div>
+      </div>
+      <div class="spending-divider"></div>
+      <div class="spending-stat">
+        <div class="spending-stat-val spending-count">${data.skinCount ?? data.total ?? 0}</div>
+        <div class="spending-stat-label">造型總數</div>
+      </div>
+    `;
+    $('collectionTab').insertBefore(bar, $('collectionGrid'));
+
+    if (pendingBundles.length > 0) {
+      const panel = document.createElement('div');
+      panel.className = 'pending-bundles-panel';
+      panel.innerHTML = `<div class="pending-bundles-title">偵測到以下組合包，請輸入當初付的包價：</div>` +
+        pendingBundles.map(b => `
+          <div class="pending-bundle-row" data-theme="${b.themeUuid}">
+            <span class="pending-bundle-name">${b.name} <span class="pending-bundle-count">(${b.skinCount} 件)</span></span>
+            <input type="number" class="pending-bundle-input" placeholder="包價 VP">
+            <button class="pending-bundle-btn" onclick="submitBundlePrice(this, '${b.themeUuid}', '${b.name}')">確認</button>
+          </div>
+        `).join('');
+      $('collectionTab').insertBefore(panel, $('collectionGrid'));
+    }
+  }
+
+  // 建立武器篩選器選項
+  const weapons = [...new Set(state.allCollectionSkins.map(s => s.weaponName))].sort();
+  const select = $('collectionWeaponFilter');
+  select.innerHTML = '<option value="">全部武器</option>';
+  weapons.forEach(w => {
+    const opt = document.createElement('option');
+    opt.value = w;
+    opt.textContent = w;
+    select.appendChild(opt);
+  });
+
+  // 搜尋與篩選事件
+  $('collectionSearch').addEventListener('input', () => {
+    renderCollection($('collectionSearch').value.trim(), $('collectionWeaponFilter').value);
+  });
+  $('collectionWeaponFilter').addEventListener('change', () => {
+    renderCollection($('collectionSearch').value.trim(), $('collectionWeaponFilter').value);
+  });
+
+  renderCollection('', '');
+}
+
+function renderCollection(query, weaponFilter) {
+  const q = query.toLowerCase();
+  const filtered = state.allCollectionSkins.filter(s => {
+    const matchQ = !q || s.skinName.toLowerCase().includes(q) || s.weaponName.toLowerCase().includes(q);
+    const matchW = !weaponFilter || s.weaponName === weaponFilter;
+    return matchQ && matchW;
+  });
+
+  $('collectionCount').textContent = `共 ${filtered.length} 款`;
+  $('collectionGrid').innerHTML = '';
+
+  if (filtered.length === 0) {
+    $('collectionGrid').innerHTML = '<div class="state-msg">沒有符合條件的皮膚</div>';
+    return;
+  }
+
+  filtered.forEach((skin, i) => {
+    const card = buildCollectionCard(skin);
+    card.style.animationDelay = `${Math.min(i, 30) * 40}ms`;
+    $('collectionGrid').appendChild(card);
+  });
+}
+
+function buildCollectionCard(skin) {
+  const card = document.createElement('div');
+  card.className = `collection-card${skin.equipped ? ' is-equipped' : ''}`;
+  card.dataset.uuid = skin.uuid;
+  const tier = uuidToTier(skin.contentTierUuid);
+  if (tier) card.dataset.tier = tier;
+
+  const tierIcon = skin.contentTierUuid
+    ? `<img class="tier-icon" src="https://media.valorant-api.com/contenttiers/${skin.contentTierUuid}/displayicon.png" alt="" onerror="this.style.display='none'">`
+    : '';
+
+  const equippedBadge = skin.equipped
+    ? `<span class="equipped-badge">裝備中</span>`
+    : '';
+
+  const chromas = skin.chromas || [];
+  // 把每個幻彩的圖示 URL 存在 data-icon；若 chroma 本身沒有專屬圖示，退回 skin.icon
+  const swatchHtml = chromas.length > 1
+    ? `<div class="chroma-swatches">${chromas.map((c, i) => {
+        const icon = c.icon || skin.icon || '';
+        return c.swatch
+          ? `<img class="chroma-swatch${i === 0 ? ' active' : ''}" src="${c.swatch}" data-icon="${icon}" alt="" title="幻彩 ${i + 1}" onerror="this.style.opacity='0.3'">`
+          : `<span class="chroma-swatch chroma-dot${i === 0 ? ' active' : ''}" data-icon="${icon}"></span>`;
+      }).join('')}</div>`
+    : '';
+
+  card.innerHTML = `
+    <div class="col-img-wrap">
+      ${skin.icon
+        ? `<img src="${skin.icon}" alt="${skin.skinName}" class="col-skin-img" loading="lazy">`
+        : `<div class="skin-img-placeholder">?</div>`}
+      ${tierIcon}
+    </div>
+    <div class="col-info">
+      <p class="col-skin-name">${skin.skinName}</p>
+      <p class="col-weapon-name">${skin.weaponName}${equippedBadge}</p>
+      ${swatchHtml}
+    </div>
+  `;
+
+  // 幻彩切換：預先 preload 所有彩圖，點擊直接換 src
+  if (chromas.length > 1) {
+    const imgEl = card.querySelector('.col-skin-img');
+    // 預先載入所有幻彩圖，讓切換瞬間完成
+    chromas.forEach(c => { if (c.icon) { const pre = new Image(); pre.src = c.icon; } });
+    card.querySelectorAll('.chroma-swatch').forEach(sw => {
+      sw.addEventListener('click', e => {
+        e.stopPropagation();
+        card.querySelectorAll('.chroma-swatch').forEach(s => s.classList.remove('active'));
+        sw.classList.add('active');
+        if (imgEl && sw.dataset.icon) imgEl.src = sw.dataset.icon;
+      });
+    });
+  }
+
+  // 點擊武器圖片區開啟 inspect 放大鏡
+  card.querySelector('.col-img-wrap').addEventListener('click', () => showInspectOverlay(skin));
+
+  setTimeout(() => add3DTilt(card), 300 + Math.random() * 200);
+  return card;
+}
+
+function showInspectOverlay(skin) {
+  document.getElementById('inspect-ol')?.remove();
+  const ol = document.createElement('div');
+  ol.id = 'inspect-ol';
+  ol.innerHTML = `
+    <div class="insp-bg"></div>
+    <div class="insp-body">
+      <img class="insp-img" src="${skin.icon || ''}" alt="${skin.skinName}" draggable="false">
+      <div class="insp-name">${skin.skinName}</div>
+      <div class="insp-weapon">${skin.weaponName}</div>
+    </div>
+  `;
+  document.body.appendChild(ol);
+  requestAnimationFrame(() => ol.classList.add('insp-in'));
+  const close = () => { ol.classList.remove('insp-in'); setTimeout(() => ol.remove(), 260); };
+  ol.querySelector('.insp-bg').addEventListener('click', close);
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
+  });
+}
+
+// ─── 商店 ───
+
+async function loadStore() {
+  $('storeGrid').innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const sk = document.createElement('div');
+    sk.className = 'skeleton-card';
+    sk.innerHTML = `<div class="skel-img"></div><div class="skel-info"><div class="skel-line"></div><div class="skel-line short"></div></div>`;
+    $('storeGrid').appendChild(sk);
+  }
+  document.querySelector('.night-market-section')?.remove();
+
+  const data = await apiFetch('/api/store');
+
+  if (data.error) {
+    if (data.error === 'NOT_AUTHENTICATED' || data.error === 'TOKEN_EXPIRED') {
+      $('app').classList.add('hidden');
+      $('loginModal').classList.remove('hidden');
+      $('loginError').textContent = 'Session 已過期，請重新登入';
+    } else {
+      $('storeGrid').innerHTML = `<div class="error-state">商店載入失敗（${data.error}）</div>`;
+    }
+    return;
+  }
+
+  // 渲染 4 個每日皮膚（交錯 fadeInUp）
+  $('storeGrid').innerHTML = '';
+  (data.dailyOffers || []).forEach((skin, i) => {
+    const card = buildSkinCard(skin, false);
+    card.style.animationDelay = `${i * 80}ms`;
+    $('storeGrid').appendChild(card);
+  });
+
+  // 夜市（開放期間才有資料）
+  if (data.nightMarket && data.nightMarket.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'night-market-section';
+    section.innerHTML = '<h3 class="section-label">夜市 Night Market</h3>';
+    const grid = document.createElement('div');
+    grid.className = 'store-grid';
+    data.nightMarket.forEach((skin, i) => {
+      const card = buildSkinCard(skin, true);
+      card.style.animationDelay = `${i * 80}ms`;
+      grid.appendChild(card);
+    });
+    section.appendChild(grid);
+    $('storeTab').appendChild(section);
+  }
+
+  if (data.remainingSeconds > 0) startCountdown(data.remainingSeconds);
+}
+
+function buildSkinCard(skin, isNight) {
+  const card = document.createElement('div');
+  const wishlist = getWishlist();
+  const inWishlist = skin.uuid && wishlist.includes(skin.uuid);
+  const isOwned = skin.uuid && state.ownedSkins.has(skin.uuid);
+
+  card.className = `skin-card${isNight ? ' night-skin' : ''}${inWishlist ? ' in-wishlist' : ''}${isOwned ? ' is-owned' : ''}`;
+  card.dataset.uuid = skin.uuid || '';
+  if (skin.cost) card.dataset.tier = costToTier(skin.cost);
+
+  const costHtml = isNight
+    ? `<span class="cost-strike">${skin.cost.toLocaleString()}</span>
+       <span class="cost-final">${skin.discountCost.toLocaleString()}</span>
+       <span class="discount-tag">-${skin.discountPercent}%</span>`
+    : `<span>${skin.cost.toLocaleString()}</span>`;
+
+  card.innerHTML = `
+    <div class="skin-img-wrap">
+      ${skin.icon
+        ? `<img src="${skin.icon}" alt="${skin.name}" class="skin-img" loading="lazy">`
+        : `<div class="skin-img-placeholder">?</div>`}
+      ${skin.uuid ? `<button class="wishlist-btn${inWishlist ? ' active' : ''}" title="加入願望清單" data-uuid="${skin.uuid}">${inWishlist ? '&#x2665;' : '&#x2661;'}</button>` : ''}
+    </div>
+    <div class="skin-info">
+      <p class="skin-name">${skin.name || 'Unknown Skin'}</p>
+      <div class="skin-cost">
+        <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png"
+             class="vp-icon" alt="VP" onerror="this.style.display='none'">
+        ${costHtml}
+      </div>
+    </div>
+  `;
+
+  // 愛心按鈕點擊事件
+  const wishBtn = card.querySelector('.wishlist-btn');
+  if (wishBtn) {
+    wishBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const uuid = wishBtn.dataset.uuid;
+      const nowIn = toggleWishlist(uuid);
+      wishBtn.classList.toggle('active', nowIn);
+      wishBtn.innerHTML = nowIn ? '&#x2665;' : '&#x2661;';
+      card.classList.toggle('in-wishlist', nowIn);
+      // 彈跳動畫
+      wishBtn.classList.remove('pop');
+      void wishBtn.offsetWidth;
+      wishBtn.classList.add('pop');
+    });
+  }
+
+  // 3D 傾斜（等翻轉入場動畫結束後再啟用，避免衝突）
+  const flipDuration = 550 + (parseInt(card.style.animationDelay) || 0);
+  setTimeout(() => add3DTilt(card), flipDuration);
+
+  return card;
+}
+
+function startCountdown(seconds) {
+  if (state.storeTimer) clearInterval(state.storeTimer);
+  let remaining = seconds;
+  const total = seconds;
+  const CIRCUMFERENCE = 113.1;
+
+  const tick = () => {
+    if (remaining <= 0) {
+      $('storeTimer').textContent = '商店已重置，請重新整理';
+      clearInterval(state.storeTimer);
+      return;
+    }
+    const h = String(Math.floor(remaining / 3600)).padStart(2, '0');
+    const m = String(Math.floor((remaining % 3600) / 60)).padStart(2, '0');
+    const s = String(remaining % 60).padStart(2, '0');
+    $('storeTimer').textContent = `${h}:${m}:${s}`;
+    const isUrgent = remaining < 3600;
+    $('storeTimer').classList.toggle('urgent', isUrgent);
+    const ring = document.getElementById('spikeRing');
+    if (ring) {
+      ring.style.strokeDashoffset = CIRCUMFERENCE * (1 - remaining / total);
+      ring.classList.toggle('urgent', isUrgent);
+    }
+    remaining--;
+  };
+
+  tick();
+  state.storeTimer = setInterval(tick, 1000);
+}
+
+// ─── 對戰紀錄 ───
+
+async function loadMatches() {
+  const { name, tag } = state.player;
+  if (!name || !tag) {
+    $('matchesList').innerHTML = '<div class="state-msg">輸入右上角的 Name#TAG 後按 Enter 開始搜尋</div>';
+    return;
+  }
+
+  $('matchStats').classList.add('hidden');
+  $('matchesList').innerHTML = '<div class="state-msg">對戰紀錄載入中...</div>';
+
+  const data = await apiFetch(`/api/matches?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`);
+
+  if (data.error) {
+    const msgs = {
+      PLAYER_NOT_FOUND: `找不到玩家 ${name}#${tag}，請確認 Riot ID 格式是否正確`,
+      NO_HENRIK_KEY: '後端未設定 Henrik API Key。請在專案根目錄建立 .env 檔並加入 HENRIK_API_KEY',
+      NOT_AUTHENTICATED: '請先登入',
+      MATCHES_FETCH_FAILED: '對戰紀錄取得失敗，請稍後再試'
+    };
+    $('matchesList').innerHTML = `<div class="error-state">${msgs[data.error] || data.message || '未知錯誤'}</div>`;
+    return;
+  }
+
+  const matches = (data.data || []).filter(m => m.metadata?.mode?.toLowerCase() !== 'deathmatch');
+  if (matches.length === 0) {
+    $('matchesList').innerHTML = `<div class="state-msg">找不到 ${name}#${tag} 的近期對戰紀錄</div>`;
+    return;
+  }
+
+  $('matchesList').innerHTML = '';
+  let idx = 0;
+  matches.forEach(match => {
+    const card = buildMatchCard(match, name, tag);
+    if (card) {
+      card.style.animationDelay = `${idx * 50}ms`;
+      $('matchesList').appendChild(card);
+      idx++;
+    }
+  });
+
+  // 計算並顯示統計摘要（需要在 buildMatchCard 之後，因為 matches 資料完整才能統計）
+  renderMatchStats(matches, name, tag);
+}
+
+// 計算統計數據並渲染到 #matchStats
+function renderMatchStats(matches, playerName, playerTag) {
+  let wins = 0;
+  let totalKills = 0;
+  let totalDeaths = 0;
+  let totalAssists = 0;
+  let validCount = 0;
+  const agentCount = {};
+  const recentResults = []; // 最多 15 場
+
+  matches.forEach(match => {
+    const allPlayers = match.players?.all_players || [];
+    const me = allPlayers.find(
+      p => p.name?.toLowerCase() === playerName.toLowerCase()
+        && p.tag?.toLowerCase() === playerTag.toLowerCase()
+    );
+    if (!me) return;
+
+    const myTeam = (me.team || 'blue').toLowerCase();
+    const teams = match.teams || {};
+    const blueWon = teams.blue?.has_won;
+    const redWon  = teams.red?.has_won;
+    const isDraw  = !blueWon && !redWon;
+    const won = teams[myTeam]?.has_won;
+
+    if (won) wins++;
+    const { kills = 0, deaths = 0, assists = 0 } = me.stats || {};
+    totalKills += kills;
+    totalDeaths += deaths;
+    totalAssists += assists;
+    validCount++;
+
+    // 統計最常用 agent
+    const agentName = me.character || 'Unknown';
+    agentCount[agentName] = (agentCount[agentName] || 0) + 1;
+
+    // 勝敗走勢（最多 15 場，最新在陣列後面，渲染時最新在右）
+    if (recentResults.length < 15) {
+      recentResults.push({
+        result: isDraw ? 'draw' : (won ? 'win' : 'loss'),
+        agentIcon: me.assets?.agent?.small || ''
+      });
+    }
+  });
+
+  if (validCount === 0) return;
+
+  // 勝率（亂碼效果）
+  const winrate = Math.round((wins / validCount) * 100);
+  animateScramble($('statWinrate'), `${winrate}%`);
+
+  // 平均 K/D（亂碼效果）
+  const avgKD = totalDeaths > 0
+    ? (totalKills / totalDeaths)
+    : totalKills;
+  animateScramble($('statAvgKDA'), avgKD.toFixed(2));
+
+  // 最常用 agent
+  const topAgent = Object.entries(agentCount).sort((a, b) => b[1] - a[1])[0];
+  if (topAgent) {
+    $('statTopAgent').textContent = topAgent[0];
+    // 從已渲染的卡片中找 agent icon（或直接從 matches 裡找）
+    const topAgentMatch = matches.find(match => {
+      const allPlayers = match.players?.all_players || [];
+      const me = allPlayers.find(
+        p => p.name?.toLowerCase() === playerName.toLowerCase()
+          && p.tag?.toLowerCase() === playerTag.toLowerCase()
+      );
+      return me?.character === topAgent[0];
+    });
+    if (topAgentMatch) {
+      const allPlayers = topAgentMatch.players?.all_players || [];
+      const me = allPlayers.find(
+        p => p.name?.toLowerCase() === playerName.toLowerCase()
+          && p.tag?.toLowerCase() === playerTag.toLowerCase()
+      );
+      const icon = me?.assets?.agent?.small || '';
+      if (icon) {
+        $('statTopAgentIcon').src = icon;
+        $('statTopAgentIcon').style.display = '';
+      }
+    }
+  }
+
+  // 勝敗走勢格（交錯 growUp 動畫）
+  const grid = $('winstreakGrid');
+  grid.innerHTML = '';
+  recentResults.forEach((r, i) => {
+    const box = document.createElement('div');
+    box.className = `streak-box ${r.result}`;
+    box.style.animationDelay = `${i * 40}ms`;
+    grid.appendChild(box);
+  });
+
+  $('matchStats').classList.remove('hidden');
+}
+
+function buildMatchCard(match, playerName, playerTag) {
+  const allPlayers = match.players?.all_players || [];
+  const me = allPlayers.find(
+    p => p.name?.toLowerCase() === playerName.toLowerCase()
+      && p.tag?.toLowerCase() === playerTag.toLowerCase()
+  );
+  if (!me) return null;
+
+  const myTeam = (me.team || 'blue').toLowerCase();
+  const teams = match.teams || {};
+  const blueWon = teams.blue?.has_won;
+  const redWon  = teams.red?.has_won;
+  const isDraw = !blueWon && !redWon;
+  const won = teams[myTeam]?.has_won;
+  const resultClass = isDraw ? 'draw' : (won ? 'win' : 'loss');
+  const resultText  = isDraw ? 'DRAW' : (won ? 'WIN' : 'LOSS');
+
+  const { kills = 0, deaths = 0, assists = 0, score: cs = 0 } = me.stats || {};
+  const blueScore = teams.blue?.rounds_won ?? '-';
+  const redScore = teams.red?.rounds_won ?? '-';
+  const mapName = match.metadata?.map || 'Unknown';
+  const mode = match.metadata?.mode || '';
+  const date = match.metadata?.game_start_patched || '';
+  const agentIcon = me.assets?.agent?.small || '';
+  // 優先使用 bust，fallback 到 full，最後才用 small
+  const agentBust = me.assets?.agent?.bust || me.assets?.agent?.full || '';
+  const agentName = me.character || '';
+  const mapBg = state.maps[mapName] || '';
+
+  // K/D 比值（純擊殺 ÷ 死亡，與官方 tracker 相同）
+  const kdRatio = deaths > 0 ? kills / deaths : kills;
+  const kdDisplay = kdRatio.toFixed(2);
+  let kdaClass = 'kda-poor';
+  if (kdRatio >= 2.0) kdaClass = 'kda-good';
+  else if (kdRatio >= 1.0) kdaClass = 'kda-ok';
+
+  const card = document.createElement('div');
+  card.className = `match-card ${resultClass}`;
+  card.innerHTML = `
+    <div class="match-bubble" id="mb-${Math.random().toString(36).slice(2)}"></div>
+    <div class="match-map-area">
+      ${mapBg ? `<div class="map-bg-img" style="background-image:url('${mapBg}')"></div>` : ''}
+      <span class="result-label ${resultClass}">${resultText}</span>
+      <span class="round-score">${blueScore} - ${redScore}</span>
+    </div>
+    <div class="match-agent-area">
+      ${agentBust ? `<div class="agent-bust-bg" style="background-image:url('${agentBust}')"></div>` : ''}
+      ${agentIcon
+        ? `<img src="${agentIcon}" alt="${agentName}" class="agent-icon">`
+        : `<div class="agent-icon-placeholder"></div>`}
+      <span class="agent-label">${agentName}</span>
+    </div>
+    <div class="match-kda-area">
+      <div class="kda-nums ${kdaClass}">
+        ${kills}<span class="kda-sep">/</span>${deaths}<span class="kda-sep">/</span>${assists}
+      </div>
+      <div class="kda-label">K / D / A</div>
+      <div class="kda-ratio-label">K/D ${kdDisplay}</div>
+      <div class="cs-label">Score ${cs.toLocaleString()}</div>
+    </div>
+    <div class="match-info-area">
+      <div class="map-label">${mapName}</div>
+      <div class="mode-label">${mode}</div>
+      <div class="date-label">${date}</div>
+    </div>
+  `;
+
+  const bubble    = card.querySelector('.match-bubble');
+  const agentArea = card.querySelector('.match-agent-area');
+  agentArea.addEventListener('mouseenter', () => {
+    const lines = (window.AGENT_LINES || {})[agentName] || [];
+    if (!lines.length) return;
+    const entry = lines[Math.floor(Math.random() * lines.length)];
+    bubble.textContent = entry.zh;
+    bubble.classList.add('bubble-on');
+    window._playAgentAudioFile?.(entry.file);
+  });
+  agentArea.addEventListener('mouseleave', () => bubble.classList.remove('bubble-on'));
+
+  addMatchTilt(card);
+  return card;
+}
+
+// ─── 歷史記錄 ───
+
+// ─── 組合包庫 ───────────────────────────────────────────────────────────────
+
+let bundleCatalogData = null;
+const bundleMap = {};
+const bundleSkinsCache = new Map();  // uuid → skins[]，避免重複打 API
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function optimalCols(n) {
+  if (n <= 5) return n;
+  if (n === 6) return 3;
+  if (n <= 8) return 4;
+  if (n === 9) return 3;
+  return 5;
+}
+
+async function loadBundleCatalog() {
+  const grid = $('bundlesGrid');
+  if (bundleCatalogData) { renderBundleGrid(bundleCatalogData); return; }
+
+  grid.innerHTML = '<div class="state-msg">從 Valorant API 載入中...</div>';
+  const data = await apiFetch('/api/bundles/catalog');
+  if (!Array.isArray(data)) {
+    grid.innerHTML = '<div class="state-msg">載入失敗，請稍後再試。</div>';
+    return;
+  }
+  bundleCatalogData = data;
+  data.forEach(b => { bundleMap[b.uuid] = b; });
+  $('bundlesCount').textContent = `共 ${data.length} 個組合包`;
+
+  $('bundlesSearch').addEventListener('input', debounce(() => {
+    const q = $('bundlesSearch').value.trim().toLowerCase();
+    renderBundleGrid(q ? bundleCatalogData.filter(b => b.displayName.toLowerCase().includes(q)) : bundleCatalogData);
+  }, 150));
+
+  renderBundleGrid(data);
+}
+
+// ─── 組合包 Modal ────────────────────────────────────────────────────────────
+
+async function openBundleModal(bundle) {
+  $('bmHeroImg').src = bundle.displayIcon2 || bundle.displayIcon || bundle.verticalPromoImage || '';
+  $('bmName').textContent = bundle.displayName;
+  $('bmPrice').textContent = bundle.price ? `${bundle.price.toLocaleString()} VP` : '';
+  $('bmSkinsGrid').innerHTML = '<div class="state-msg">載入皮膚中...</div>';
+  $('bundleModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const data = bundleSkinsCache.has(bundle.uuid)
+      ? bundleSkinsCache.get(bundle.uuid)
+      : await apiFetch(`/api/bundles/${bundle.uuid}/skins`).then(d => { bundleSkinsCache.set(bundle.uuid, d); return d; });
+    const skins   = data.skins   || [];
+    const buddies = data.buddies || [];
+    const sprays  = data.sprays  || [];
+
+    if (!skins.length) {
+      $('bmSkinsGrid').innerHTML = '<div class="state-msg">此組合包無皮膚資料</div>';
+      $('bmAccessories').classList.add('hidden');
+      return;
+    }
+
+    // 去掉包名前綴，只顯示武器部分
+    const prefix = bundle.displayName + ' ';
+    $('bmSkinsGrid').innerHTML = skins.map((s, i) => {
+      const tier = uuidToTier(s.contentTierUuid) || 'unknown';
+      const name = s.displayName.startsWith(prefix) ? s.displayName.slice(prefix.length) : s.displayName;
+      const isMelee = !!s.isMelee;
+      const chromas = s.chromas || [];
+      const swatches = chromas.slice(0, 4).map((c, ci) => `
+        <img class="bm-swatch${ci === 0 ? ' active' : ''}"
+             src="${c.swatch}"
+             data-icon="${c.icon || ''}"
+             data-skin="${i}"
+             onclick="bmSwatchClick(this, ${i})"
+             title="${ci === 0 ? '預設色' : '煥彩 ' + ci}">`
+      ).join('');
+      const levels = s.levelCount > 1 ? `<span class="bm-levels">${s.levelCount} lv</span>` : '';
+      return `
+        <div class="bm-skin-card bm-skin-${tier}">
+          <div class="bm-skin-img-wrap">
+            <img class="bm-skin-img" id="bm-skin-img-${i}" src="${s.icon || ''}" loading="lazy" alt="${name}">
+          </div>
+          <div class="bm-skin-footer">
+            <div class="bm-skin-name">${name}${isMelee ? '<span class="bm-melee-badge">近戰</span>' : ''}</div>
+            <div class="bm-skin-meta">${swatches}${levels}</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    $('bmSkinsGrid').style.gridTemplateColumns = `repeat(${optimalCols(skins.length)}, 1fr)`;
+    skins.forEach(s => (s.chromas || []).forEach(c => { if (c.icon) { new Image().src = c.icon; } }));
+
+    // 吊飾和噴漆區塊
+    const acc = $('bmAccessories');
+    if (!buddies.length && !sprays.length) {
+      acc.classList.add('hidden');
+    } else {
+      const buddyHtml = buddies.length ? `
+        <div class="bm-acc-section">
+          <div class="bm-acc-title">吊飾</div>
+          <div class="bm-acc-grid">${buddies.map(b => `
+            <div class="bm-acc-card">
+              <img class="bm-acc-img" src="${b.icon || ''}" alt="${b.displayName}" loading="lazy">
+              <div class="bm-acc-name">${b.displayName}</div>
+            </div>`).join('')}
+          </div>
+        </div>` : '';
+      const sprayHtml = sprays.length ? `
+        <div class="bm-acc-section">
+          <div class="bm-acc-title">噴漆</div>
+          <div class="bm-acc-grid">${sprays.map(s => `
+            <div class="bm-acc-card">
+              <img class="bm-acc-img" src="${s.icon || ''}" alt="${s.displayName}" loading="lazy">
+              <div class="bm-acc-name">${s.displayName}</div>
+            </div>`).join('')}
+          </div>
+        </div>` : '';
+      acc.innerHTML = buddyHtml + sprayHtml;
+      acc.classList.remove('hidden');
+    }
+  } catch {
+    $('bmSkinsGrid').innerHTML = '<div class="state-msg">載入失敗，請稍後再試</div>';
+    $('bmAccessories').classList.add('hidden');
+  }
+}
+
+function bmSwatchClick(el, skinIdx) {
+  el.closest('.bm-skin-meta').querySelectorAll('.bm-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  const icon = el.dataset.icon;
+  if (icon) $(`bm-skin-img-${skinIdx}`).src = icon;
+}
+
+function closeBundleModal(e) {
+  if (e && e.target !== $('bundleModal')) return;
+  $('bundleModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBundleModal(); });
+
+const TIER_COLOR = {
+  'S+': '#ff79c6', 'S-': '#FFD700',
+  'A+': '#FF7043', 'A-': '#FF9C00',
+  'B+': '#4DB6AC', 'B-': '#80CBC4',
+  'C':  '#90A4AE', 'D':  '#78909C', 'E': '#6D4C41',
+};
+
+function buildBundleCard(b) {
+  const img = b.verticalPromoImage || b.displayIcon2 || b.displayIcon || '';
+  const price = b.price ? `<span class="bc-price">${b.price.toLocaleString()} VP</span>` : '';
+  return `
+    <div class="bc-card" title="${b.displayName}" onclick="openBundleModal(bundleMap['${b.uuid}'])">
+      <img class="bc-img" src="${img}" loading="lazy" alt="${b.displayName}" onerror="this.src='${b.displayIcon || ''}'">
+      <div class="bc-overlay">
+        <span class="bc-name">${b.displayName}</span>
+        ${price}
+      </div>
+    </div>`;
+}
+
+function renderBundleGrid(bundles) {
+  const grid = $('bundlesGrid');
+  if (!bundles.length) { grid.innerHTML = '<div class="state-msg">找不到符合的組合包。</div>'; return; }
+
+  const isSearching = $('bundlesSearch').value.trim().length > 0;
+  const regular = bundles.filter(b => !b.isVCT);
+  const vct = bundles.filter(b => b.isVCT);
+
+  if (isSearching || !vct.length) {
+    grid.className = 'bundles-grid';
+    grid.innerHTML = [...regular, ...vct].map(buildBundleCard).join('');
+    return;
+  }
+
+  grid.className = 'bundles-container';
+  grid.innerHTML = `
+    <div class="bundles-regular-grid">${regular.map(buildBundleCard).join('')}</div>
+    <div class="vct-section">
+      <button class="vct-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('vct-open')">
+        <span>VCT 戰隊組合包</span>
+        <span class="vct-count">${vct.length}</span>
+        <svg class="vct-chevron" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <div class="vct-grid">${vct.map(buildBundleCard).join('')}</div>
+    </div>`;
+}
+
+let historyCache = null;
+
+async function loadHistory() {
+  if (historyCache) { renderHistory(historyCache); return; }
+  $('historyList').innerHTML = '<div class="state-msg">歷史記錄載入中...</div>';
+  const data = await apiFetch('/api/store/history');
+  historyCache = data;
+  renderHistory(data);
+}
+
+function renderHistory(data) {
+  if (!Array.isArray(data) || data.length === 0) {
+    $('historyList').innerHTML = '<div class="state-msg">尚無歷史商店記錄。每次開啟每日商店後會自動儲存。</div>';
+    return;
+  }
+
+  $('historyList').innerHTML = '';
+  data.forEach(entry => {
+    const dayEl = document.createElement('div');
+    dayEl.className = 'history-day';
+
+    const dateObj = new Date(entry.date + 'T00:00:00');
+    const dateLabel = isNaN(dateObj.getTime())
+      ? entry.date
+      : dateObj.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+
+    const skinsHtml = (entry.skins || []).map(skin => `
+      <div class="history-skin-item">
+        ${skin.icon
+          ? `<img src="${skin.icon}" alt="${skin.name}" class="history-skin-thumb" loading="lazy">`
+          : `<div class="history-skin-thumb-placeholder">?</div>`}
+        <div class="history-skin-name">${skin.name || 'Unknown'}</div>
+        <div class="history-skin-cost">
+          <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png"
+               class="history-vp-icon" alt="VP" onerror="this.style.display='none'">
+          <span>${(skin.cost || 0).toLocaleString()}</span>
+        </div>
+      </div>
+    `).join('');
+
+    dayEl.innerHTML = `
+      <div class="history-day-header">${dateLabel}</div>
+      <div class="history-day-grid">${skinsHtml}</div>
+    `;
+
+    $('historyList').appendChild(dayEl);
+  });
+}
+
+// ─── 工具 ───
+
+// 數字亂碼效果：先顯示隨機數字，逐漸從左到右定格成真實值
+function animateScramble(el, finalText) {
+  const digits = '0123456789';
+  const duration = 900;
+  const start = performance.now();
+  const tick = (now) => {
+    const progress = Math.min((now - start) / duration, 1);
+    el.textContent = Array.from(finalText).map((ch, i) => {
+      if (!/[0-9]/.test(ch)) return ch;
+      if (progress > (i / finalText.length) * 0.85) return ch;
+      return digits[Math.floor(Math.random() * 10)];
+    }).join('');
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.textContent = finalText;
+  };
+  requestAnimationFrame(tick);
+}
+
+// ── 報紙戰報 ──────────────────────────────────────────────────────────────
+function openNewspaper() {
+  const name  = $('profileName')?.textContent?.trim() || '無名玩家';
+  const tag   = $('profileTag')?.textContent?.trim()  || '';
+  const tier  = $('profileTierName')?.textContent?.trim() || '無段位';
+  const rrTxt = $('profileRR')?.textContent?.trim()   || '0 RR';
+  const vp    = parseInt($('profileVP')?.textContent?.replace(/,/g, '') || '0');
+  const rp    = parseInt($('profileRP')?.textContent?.replace(/,/g, '') || '0');
+
+  const cards   = [...document.querySelectorAll('.match-card')];
+  const results = cards.map(c => c.classList.contains('win') ? 'W' : c.classList.contains('loss') ? 'L' : 'D');
+  const agents  = cards.map(c => c.querySelector('.agent-label')?.textContent?.trim() || '');
+
+  const total    = results.length;
+  const wins     = results.filter(r => r === 'W').length;
+  const losses   = results.filter(r => r === 'L').length;
+  const winrate  = total > 0 ? Math.round(wins / total * 100) : 0;
+  const ownedCnt = state.ownedSkins.size;
+
+  let streak = 0, streakType = '';
+  for (const r of results) {
+    if (r === 'D') continue;
+    if (!streakType) { streakType = r; streak = 1; }
+    else if (r === streakType) streak++;
+    else break;
+  }
+
+  const agentCount = {};
+  agents.forEach(a => { if (a) agentCount[a] = (agentCount[a] || 0) + 1; });
+  const topAgent = Object.entries(agentCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '未知特務';
+
+  const now     = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+  const edition = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+
+  // 主標
+  let headline, mainBody;
+  if (streakType === 'L' && streak >= 3) {
+    headline = `【${streak}連敗特刊】${name} 深陷敗戰泥淖，隊友資訊暫不公開`;
+    mainBody  = `消息人士透露，當事人已連續 ${streak} 場以相同戰術衝入同一角落，結果均告失敗。分析師表示：「這在技術上已超越統計誤差的合理範圍。」隊友一行人拒絕受訪，部分人士已靜音通話。`;
+  } else if (streakType === 'W' && streak >= 3) {
+    headline = `連勝 ${streak} 場！${name} 席捲排位天梯`;
+    mainBody  = `排名持續攀升，對手賽後集體沉默。部分玩家已將其列入「優先封鎖名單」，另有人士嘗試更換遊戲時段以規避相遇。當事人表示：「只是手感來了。」手感本人目前無法聯繫。`;
+  } else if (winrate < 40 && total >= 5) {
+    headline = `勝率跌破四成，${name} 堅稱「今天狀態不好」`;
+    mainBody  = `追蹤顯示，上述聲明已在近 ${total} 場比賽後持續發表，觀察人士指出：「若以此為標準，人類可能不存在狀態好的一天。」心理師建議：先休息，再評估。`;
+  } else if (winrate >= 60 && total >= 5) {
+    headline = `本週勝率 ${winrate}%，${name} 引發天梯動盪`;
+    mainBody  = `對手陣營陷入輕度恐慌，部分玩家申請轉移至冷門時段。官方對此尚未表態，但伺服器負載數據顯示有不明波動。`;
+  } else {
+    headline = `${name} 於排位賽中繼續存在，情況尚在評估中`;
+    mainBody  = `本週共出現於 ${total} 場排位對局，具體影響正由各方評估中。隊友方面暫無官方聲明，對戰紀錄則如實保存。`;
+  }
+
+  // 三欄故事
+  const vpStory = vp > 2000
+    ? { h: `${vp.toLocaleString()} VP 囤積事件持續延燒`,   b: `消費者手持大量 VP 卻遲遲不出手，等待「那款皮膚」的態度被學界定性為一種信仰形式。Riot 方面對此報以沉默與穩定的新皮膚發布頻率。` }
+    : { h: `VP 餘額 ${vp}，理智線據報僅存最後防線`,       b: `知情人士透露，當事人日前曾凝視商店良久後關閉分頁，自語「下次吧」。記者追問何時為下次，未獲回應。` };
+
+  const rankStory = { h: `${tier} ${rrTxt}，前路茫茫`, b: `當事人對目前段位的看法是「暫時的」，此說法已維持數週。心理學家建議：接受現實，或更換遊戲，二擇一，不建議第三選項。` };
+
+  const agentStory = { h: `${topAgent} 頻繁現蹤，專家研判與勝率無直接關聯`, b: `使用數據顯示，${name} 近期大量選用 ${topAgent}，然勝率並未因此顯著提升。特務方面無可奉告，據悉正在練習靶場待命。` };
+
+  // 快訊
+  const briefs = [
+    `本地 ${tier} 玩家表示「只差一點就升段」，此話已說出 ${Math.max(losses, 3)} 次以上`,
+    `排位失利後立即開啟下一局，醫學界對此現象持保留態度`,
+    rp > 100
+      ? `${rp} RP 持有者宣稱「不在意段位」，神情透露絲絲不安`
+      : `RP 餘額告急，戰鬥通行證進度岌岌可危，本人否認有壓力`,
+    ownedCnt > 0
+      ? `持有 ${ownedCnt} 款皮膚的玩家坦承：「其實我都用預設準心」`
+      : `零皮膚持有者稱「內容才是重點」，錢包對此深表認同`,
+  ];
+
+  const ads = [
+    '【徵人啟事】尋高勝率排位搭子。條件：不要在 B 門正面硬拼。待遇面議，不含保險。',
+    '【廉價 VP 特賣】無法購買任何皮膚，但可以買到一個繼續等待的理由。數量有限。',
+    '【排位崩潰後心理諮商】首次免費。第二次你會需要的。第三次打折。',
+  ];
+  const ad = ads[now.getDate() % ads.length];
+
+  $('newspaper').innerHTML = `
+    <button class="np-close-btn" onclick="document.getElementById('newspaper-overlay').classList.add('np-hidden')">✕ 關閉</button>
+    <div class="np-masthead">
+      <div class="np-meta">第 ${edition} 版 &nbsp;·&nbsp; 特別報導</div>
+      <div class="np-title">VAL TIMES 戰報</div>
+      <div class="np-tagline">「今日無頭條，明日無排位」</div>
+      <div class="np-date">${dateStr} &nbsp;·&nbsp; 天氣：視野不良，建議改打死鬥模式</div>
+    </div>
+    <hr class="np-hr np-hr--thick">
+    <div class="np-headline">${headline}</div>
+    <div class="np-main-body">${mainBody}</div>
+    <hr class="np-hr np-hr--thin">
+    <div class="np-columns">
+      <div class="np-col"><div class="np-col-head">${vpStory.h}</div><div class="np-col-body">${vpStory.b}</div></div>
+      <div class="np-col"><div class="np-col-head">${rankStory.h}</div><div class="np-col-body">${rankStory.b}</div></div>
+      <div class="np-col"><div class="np-col-head">${agentStory.h}</div><div class="np-col-body">${agentStory.b}</div></div>
+    </div>
+    <hr class="np-hr np-hr--thin">
+    <div class="np-briefs">
+      <span class="np-briefs-label">簡訊快報</span>
+      ${briefs.map(b => `<span class="np-brief">▪ ${b}</span>`).join('')}
+    </div>
+    <hr class="np-hr np-hr--thick">
+    <div class="np-ad">${ad}</div>
+  `;
+
+  $('newspaper-overlay').classList.remove('np-hidden');
+}
+
+// 皮膚卡片：3D 傾斜 + cursor spotlight（隨滑鼠位置）
+function add3DTilt(card) {
+  const tier = card.dataset.tier || '';
+  const holoStrength = { select: 0.25, deluxe: 0.38, premium: 0.54, ultra: 0.75, exclusive: 0.95 }[tier] || 0;
+
+  card.addEventListener('mousemove', (e) => {
+    const r = card.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const nx = x / r.width  - 0.5;
+    const ny = y / r.height - 0.5;
+    card.style.transform = `perspective(800px) rotateY(${nx * 14}deg) rotateX(${-ny * 10}deg) translateY(-6px) scale(1.03)`;
+    card.style.transition = 'transform 0.08s ease, border-color 0.2s, box-shadow 0.2s';
+    card.style.setProperty('--spot-x', `${x}px`);
+    card.style.setProperty('--spot-y', `${y}px`);
+    card.style.setProperty('--spot-opacity', '1');
+    if (holoStrength > 0) {
+      card.style.setProperty('--holo-x', ((nx + 0.5) * 100).toFixed(1));
+      card.style.setProperty('--holo-y', ((ny + 0.5) * 100).toFixed(1));
+      card.style.setProperty('--holo-angle', `${(nx * 60 + 125).toFixed(1)}deg`);
+      card.style.setProperty('--holo-opacity', holoStrength);
+    }
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = '';
+    card.style.transition = 'border-color 0.2s, box-shadow 0.2s';
+    card.style.setProperty('--spot-opacity', '0');
+    card.style.setProperty('--holo-opacity', '0');
+  });
+}
+
+// 對戰卡片：輕微傾斜 + cursor spotlight
+function addMatchTilt(card) {
+  card.addEventListener('mousemove', (e) => {
+    const r = card.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const nx = x / r.width  - 0.5;
+    const ny = y / r.height - 0.5;
+    card.style.transform = `perspective(1200px) rotateY(${nx * 5}deg) rotateX(${-ny * 3}deg) translateY(-2px)`;
+    card.style.transition = 'transform 0.1s ease, background 0.15s, box-shadow 0.2s';
+    card.style.setProperty('--spot-x', `${x}px`);
+    card.style.setProperty('--spot-y', `${y}px`);
+    card.style.setProperty('--spot-opacity', '1');
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = '';
+    card.style.transition = 'background 0.15s, box-shadow 0.2s, transform 0.25s cubic-bezier(0.22,1,0.36,1)';
+    card.style.setProperty('--spot-opacity', '0');
+  });
+}
+
+async function apiFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  return res.json();
+}
+
+init();

@@ -1,0 +1,8 @@
+node_modules/
+.env
+.riot-cookies.json
+store-history.json
+.bundle-prices.json
+catalog_en_tmp.json
+catalog_tmp.json
+themes_tmp.json

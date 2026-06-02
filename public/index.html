@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Valorant Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 大氣層背景 -->
+  <div class="scan-lines" aria-hidden="true"></div>
+  <div class="bg-orb bg-orb-red" aria-hidden="true"></div>
+  <div class="bg-orb bg-orb-purple" aria-hidden="true"></div>
+
+  <!-- 登入畫面 -->
+  <div id="loginModal">
+    <div class="login-box">
+      <div class="lc lc-tl" aria-hidden="true"></div>
+      <div class="lc lc-br" aria-hidden="true"></div>
+      <div class="login-watermark" aria-hidden="true">V</div>
+      <div class="login-brand"><span class="brand-slash">//</span> VAL TRACKER</div>
+      <p class="login-sub">輸入你的 Riot 帳號登入</p>
+      <form id="loginForm">
+        <div class="field-group">
+          <label class="field-label">Riot 使用者名稱</label>
+          <input type="text" id="username" class="field-input" placeholder="帳號名稱（非遊戲 ID）" autocomplete="username" required>
+        </div>
+        <div class="field-group">
+          <label class="field-label">密碼</label>
+          <div class="input-wrap">
+            <input type="password" id="password" class="field-input" placeholder="••••••••" autocomplete="current-password" required>
+            <button type="button" id="togglePassword" class="eye-btn" tabindex="-1">
+              <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">伺服器地區</label>
+          <select id="regionSelect" class="field-input field-select">
+            <option value="ap">亞太 AP（台灣、日本、東南亞）</option>
+            <option value="na">北美 NA</option>
+            <option value="eu">歐洲 EU</option>
+            <option value="kr">韓國 KR</option>
+          </select>
+        </div>
+        <button type="submit" id="loginBtn" class="login-btn">登入</button>
+      </form>
+      <div id="mfaSection" style="display:none;">
+        <div class="field-group">
+          <label class="field-label">二步驟驗證碼（Email 或 Authenticator App）</label>
+          <input type="text" id="mfaCode" class="field-input" placeholder="請輸入 6 位數驗證碼" maxlength="8" inputmode="numeric">
+        </div>
+        <button id="mfaBtn" class="login-btn">確認驗證碼</button>
+      </div>
+      <p id="loginError" class="error-text"></p>
+      <p class="disclaimer-text">帳號密碼僅傳送至 Riot 官方伺服器，不儲存於本站。</p>
+    </div>
+  </div>
+
+  <!-- 主應用程式 -->
+  <div id="app" class="hidden">
+
+    <nav class="topnav">
+      <div class="nav-logo">VAL TRACKER</div>
+      <div class="nav-tabs">
+        <button class="tab-btn active" data-tab="store">每日商店</button>
+        <button class="tab-btn" data-tab="matches">對戰紀錄</button>
+        <button class="tab-btn" data-tab="history">歷史記錄</button>
+        <button class="tab-btn" data-tab="collection">我的收藏</button>
+        <button class="tab-btn" data-tab="bundles">組合包庫</button>
+        <button id="np-nav-btn" class="mp-nav-btn" title="今日戰報" onclick="openNewspaper()">號外</button>
+        <button id="mp-nav-btn" class="mp-nav-btn" title="背景音樂">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="nav-right">
+        <input type="text" id="playerIdInput" class="id-input" placeholder="Name#TAG（Enter 搜尋）">
+        <button id="logoutBtn" class="logout-btn">登出</button>
+      </div>
+    </nav>
+
+    <!-- 嵌入式音樂播放條（預設收起） -->
+    <div id="music-bar" class="mp-hidden">
+      <button id="mp-toggle" class="mp-playbtn" title="播放 / 暫停">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 20,12 5,21"/></svg>
+      </button>
+      <div class="mp-info">
+        <div id="mp-title" class="mp-title">LAST SHOT</div>
+        <div id="mp-artist" class="mp-artist">ft. templuv &amp; 347aidan</div>
+      </div>
+      <span id="mp-cur" class="mp-time">0:00</span>
+      <input type="range" id="mp-seek" class="mp-seek" min="0" max="100" value="0" step="0.1">
+      <span id="mp-dur" class="mp-time">0:00</span>
+      <div class="mp-tracks">
+        <button class="mp-yr" data-idx="0">
+          <img src="https://media.valorant-api.com/bundles/bf987f36-4a33-45e4-3c49-1ab9a2502607/displayicon.png" alt="Champions 2021">
+          <span>2021</span>
+        </button>
+        <button class="mp-yr" data-idx="1">
+          <img src="https://media.valorant-api.com/bundles/f99e5b38-48c7-1146-acfa-9baaf773b844/displayicon.png" alt="Champions 2022">
+          <span>2022</span>
+        </button>
+        <button class="mp-yr" data-idx="2">
+          <img src="https://media.valorant-api.com/bundles/90ee89df-40cf-03d3-420f-3d9a1b81d85b/displayicon.png" alt="Champions 2023">
+          <span>2023</span>
+        </button>
+        <button class="mp-yr" data-idx="3">
+          <img src="https://media.valorant-api.com/bundles/422a7fba-4bfa-fe5e-0e79-d7b553071089/displayicon.png" alt="Champions 2024">
+          <span>2024</span>
+        </button>
+        <button class="mp-yr active" data-idx="4">
+          <img src="https://media.valorant-api.com/bundles/c18084b7-46ea-8231-28dd-808d9f4b4e66/displayicon.png" alt="Champions 2025">
+          <span>2025</span>
+        </button>
+      </div>
+      <div class="mp-vol-wrap">
+        <svg id="mp-vol-icon" class="mp-vol-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M3 9v6h4l5 5V4L7 9H3z"/>
+          <path d="M14 8.97v6.06c1.48-.73 2.5-2.25 2.5-4.03s-1.02-3.3-2.5-4.03z"/>
+          <path d="M17.5 12c0-2.42-1.4-4.5-3.5-5.54v11.07c2.1-1.04 3.5-3.12 3.5-5.53z"/>
+          <path d="M20.93 12c0-3.17-1.54-5.99-4-7.69v15.38c2.46-1.7 4-4.52 4-7.69z"/>
+        </svg>
+        <input type="range" id="mp-vol" class="mp-slider" min="0" max="100" value="40">
+      </div>
+    </div>
+
+    <!-- 玩家資料頭部（登入後顯示） -->
+    <div id="profileHeader" class="profile-header hidden">
+      <div class="profile-rank">
+        <img id="profileRankIcon" class="rank-icon-large" src="" alt="rank" onerror="this.style.display='none'">
+        <div class="profile-rank-text">
+          <div id="profileTierName" class="tier-name">--</div>
+          <div id="profileRR" class="tier-rr">-- RR</div>
+        </div>
+      </div>
+      <div class="profile-player">
+        <div id="profileName" class="profile-playername">--</div>
+        <div id="profileTag" class="profile-playertag">--</div>
+      </div>
+      <div class="profile-currency">
+        <div class="currency-item vp-item">
+          <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png"
+               class="currency-icon" alt="VP" onerror="this.style.display='none'">
+          <span id="profileVP" class="currency-val vp-val">--</span>
+          <span class="currency-label">VP</span>
+        </div>
+        <div class="currency-item rp-item">
+          <img src="https://media.valorant-api.com/currencies/e59aa87c-4cbf-517a-5983-6e81511be9b7/displayicon.png"
+               class="currency-icon" alt="RP" onerror="this.style.display='none'">
+          <span id="profileRP" class="currency-val rp-val">--</span>
+          <span class="currency-label">RP</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 商店頁 -->
+    <div id="storeTab" class="tab-page">
+      <div class="page-header">
+        <h2 class="page-title">每日商店</h2>
+        <div class="header-right">
+          <div class="timer-wrap">
+            <svg class="spike-svg" viewBox="0 0 44 44" aria-hidden="true">
+              <circle class="spike-track" cx="22" cy="22" r="18"/>
+              <circle class="spike-prog" id="spikeRing" cx="22" cy="22" r="18"/>
+              <!-- 爆能器：counterrotate 90deg 讓菱形直立（抵銷 CSS rotate(-90deg)） -->
+              <g transform="rotate(90, 22, 22)">
+                <polygon class="orb-outer" points="22,8 36,22 22,36 8,22"/>
+                <polygon class="orb-inner" points="22,14 30,22 22,30 14,22"/>
+                <circle class="orb-dot" cx="22" cy="22" r="2.5"/>
+              </g>
+            </svg>
+            重置倒計時 <span id="storeTimer" class="timer-val">--:--:--</span>
+          </div>
+          <button id="refreshStoreBtn" class="refresh-btn" title="重新整理">&#8635;</button>
+        </div>
+      </div>
+      <div id="storeGrid" class="store-grid">
+        <div class="state-msg">商店資料載入中...</div>
+      </div>
+    </div>
+
+    <!-- 對戰紀錄頁 -->
+    <div id="matchesTab" class="tab-page hidden">
+      <div class="page-header">
+        <h2 class="page-title">對戰紀錄</h2>
+        <span class="page-hint">在上方輸入 Riot ID 後按 Enter</span>
+      </div>
+      <!-- 統計摘要區塊 -->
+      <div id="matchStats" class="match-stats hidden">
+        <div class="stats-summary">
+          <div class="stat-item">
+            <div class="stat-val" id="statWinrate">--%</div>
+            <div class="stat-label">勝率</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="statAvgKDA">--</div>
+            <div class="stat-label">平均 K/D</div>
+          </div>
+          <div class="stat-item stat-agent">
+            <img id="statTopAgentIcon" class="stat-agent-icon" src="" alt="" onerror="this.style.display='none'">
+            <div>
+              <div class="stat-val" id="statTopAgent">--</div>
+              <div class="stat-label">最常用 Agent</div>
+            </div>
+          </div>
+        </div>
+        <!-- 勝敗走勢格 -->
+        <div class="winstreak-wrap">
+          <div class="winstreak-label">最近對戰</div>
+          <div id="winstreakGrid" class="winstreak-grid"></div>
+        </div>
+      </div>
+      <div id="matchesList" class="matches-list">
+        <div class="state-msg">輸入右上角的 Name#TAG 後按 Enter 開始搜尋</div>
+      </div>
+    </div>
+
+    <!-- 我的收藏頁 -->
+    <div id="collectionTab" class="tab-page hidden">
+      <div class="page-header">
+        <h2 class="page-title">我的收藏</h2>
+        <span id="collectionCount" class="page-hint"></span>
+      </div>
+      <div class="collection-toolbar">
+        <input type="text" id="collectionSearch" class="collection-search" placeholder="搜尋皮膚或武器名稱...">
+        <select id="collectionWeaponFilter" class="collection-filter">
+          <option value="">全部武器</option>
+        </select>
+      </div>
+      <div id="collectionGrid" class="collection-grid">
+        <div class="state-msg">載入中...</div>
+      </div>
+    </div>
+
+    <!-- 組合包庫 -->
+    <div id="bundlesTab" class="tab-page hidden">
+      <div class="page-header">
+        <h2 class="page-title">組合包庫</h2>
+        <span id="bundlesCount" class="page-hint"></span>
+      </div>
+      <div class="bundles-toolbar">
+        <input type="text" id="bundlesSearch" class="collection-search" placeholder="搜尋組合包名稱...">
+      </div>
+      <div id="bundlesGrid" class="bundles-grid">
+        <div class="state-msg">載入中...</div>
+      </div>
+    </div>
+
+    <!-- 組合包 Modal -->
+    <div id="bundleModal" class="bm-backdrop hidden" onclick="closeBundleModal(event)">
+      <div class="bm-panel">
+        <div class="bm-hero">
+          <img id="bmHeroImg" class="bm-hero-img" src="" alt="">
+          <div class="bm-hero-overlay">
+            <button class="bm-close" onclick="closeBundleModal()">✕</button>
+            <div class="bm-hero-bottom">
+              <h2 id="bmName" class="bm-name"></h2>
+              <div id="bmPrice" class="bm-price"></div>
+            </div>
+          </div>
+        </div>
+        <div id="bmSkinsGrid" class="bm-skins-grid"></div>
+        <div id="bmAccessories" class="bm-accessories hidden"></div>
+      </div>
+    </div>
+
+    <!-- 歷史記錄頁 -->
+    <div id="historyTab" class="tab-page hidden">
+      <div class="page-header">
+        <h2 class="page-title">歷史記錄</h2>
+        <span class="page-hint">過去每日商店的皮膚記錄</span>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="state-msg">歷史記錄載入中...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Kill Feed -->
+  <div id="killfeed"></div>
+
+  <!-- 報紙 Overlay -->
+  <div id="newspaper-overlay" class="np-hidden">
+    <div id="newspaper"></div>
+  </div>
+
+  <!-- YouTube 隱藏播放節點 -->
+  <div id="yt-hidden" style="position:fixed;bottom:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+
+  <script src="features.js"></script>
+  <script src="app.js"></script>
+  <script src="music.js"></script>
+</body>
+</html>
