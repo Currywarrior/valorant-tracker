@@ -118,15 +118,6 @@ async function cacheMaps() {
 // ─── 事件綁定 ───
 
 function setupListeners() {
-  $('loginForm').addEventListener('submit', handleLogin);
-
-  $('togglePassword').addEventListener('click', () => {
-    const input = $('password');
-    const isHidden = input.type === 'password';
-    input.type = isHidden ? 'text' : 'password';
-    $('eyeIcon').style.opacity = isHidden ? '0.4' : '1';
-  });
-  $('mfaBtn').addEventListener('click', handleMfa);
   $('logoutBtn').addEventListener('click', handleLogout);
   $('refreshStoreBtn').addEventListener('click', loadStore);
 
@@ -169,73 +160,9 @@ function setupListeners() {
 
 // ─── 認證 ───
 
-async function handleLogin(e) {
-  e.preventDefault();
-  const btn = $('loginBtn');
-  const errEl = $('loginError');
-  btn.textContent = '登入中...';
-  btn.disabled = true;
-  errEl.textContent = '';
-
-  const data = await apiFetch('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({
-      username: $('username').value.trim(),
-      password: $('password').value,
-      region: $('regionSelect').value
-    })
-  });
-
-  btn.textContent = '登入';
-  btn.disabled = false;
-
-  if (data.error) {
-    const msgs = {
-      AUTH_FAILED: '帳號或密碼錯誤，或 Riot 暫時封鎖了此登入方式',
-      MISSING_FIELDS: '請填入所有欄位',
-      TOO_MANY_REQUESTS: '登入嘗試太頻繁，請等 15 分鐘後再試',
-    };
-    errEl.textContent = msgs[data.error] || '登入失敗';
-    return;
-  }
-
-  // MFA 二步驟驗證
-  if (data.mfa) {
-    $('loginForm').style.display = 'none';
-    $('mfaSection').style.display = 'block';
-    errEl.textContent = '請查看你的 Email 或 Authenticator App，輸入 6 位數驗證碼';
-    errEl.style.color = '#aaa';
-    return;
-  }
-
-  onLoginSuccess(data);
-}
-
-async function handleMfa() {
-  const btn = $('mfaBtn');
-  const errEl = $('loginError');
-  const code = $('mfaCode').value.trim();
-  if (!code) { errEl.textContent = '請輸入驗證碼'; errEl.style.color = '#ff4655'; return; }
-
-  btn.textContent = '驗證中...';
-  btn.disabled = true;
-  errEl.textContent = '';
-
-  const data = await apiFetch('/api/auth/mfa', {
-    method: 'POST',
-    body: JSON.stringify({ code })
-  });
-
-  btn.textContent = '確認驗證碼';
-  btn.disabled = false;
-
-  if (data.error) {
-    errEl.style.color = '#ff4655';
-    errEl.textContent = data.error === 'MFA_FAILED' ? '驗證碼錯誤或已過期，請重新嘗試' : '驗證失敗';
-    return;
-  }
-
-  onLoginSuccess(data);
+function handleLogin() {
+  const region = $('regionSelect').value;
+  window.location.href = `/auth/start?region=${region}`;
 }
 
 

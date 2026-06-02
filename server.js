@@ -551,6 +551,58 @@ async function riotAuthFinalize(uri) {
 
 // ─── AUTH ROUTES ───
 
+// 瀏覽器 OAuth 流程：跳轉到 Riot 官方登入頁，登入後帶 token 回我們的 callback
+app.get('/auth/start', (req, res) => {
+  const region = req.query.region || 'ap';
+  const nonce = require('crypto').randomBytes(16).toString('hex');
+  req.session.pendingRegion = region;
+  req.session.oauthNonce = nonce;
+  const callbackUrl = `${req.protocol}://${req.get('host')}/auth-callback.html`;
+  const params = new URLSearchParams({
+    redirect_uri: callbackUrl,
+    client_id: 'play-valorant-web-prod',
+    response_type: 'token id_token',
+    nonce,
+    scope: 'openid',
+  });
+  res.redirect(`https://auth.riotgames.com/authorize?${params}`);
+});
+
+// 從瀏覽器拿到 access_token 後，換 entitlements + userinfo，存 session
+app.post('/api/auth/from-token', async (req, res) => {
+  const { accessToken } = req.body;
+  if (!accessToken) return res.status(400).json({ error: 'MISSING_TOKEN' });
+  const region = req.session.pendingRegion || 'ap';
+  try {
+    const [entRes, userRes] = await Promise.all([
+      axios.post(
+        'https://entitlements.auth.riotgames.com/api/token/v1',
+        {},
+        { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+      ),
+      axios.get('https://auth.riotgames.com/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }),
+    ]);
+    const entitlementsToken = entRes.data.entitlements_token;
+    const puuid = userRes.data.sub;
+    const acct = userRes.data.acct;
+    const gameName = acct ? `${acct.game_name}#${acct.tag_line}` : null;
+    delete req.session.pendingRegion;
+    delete req.session.oauthNonce;
+    req.session.riot = {
+      accessToken, entitlementsToken, puuid, gameName,
+      region, authMethod: 'oauth', clientVersion: null,
+      expiresAt: Date.now() + 60 * 60 * 1000, // Riot token 約 1 小時
+    };
+    console.log(`[Auth] OAuth login: ${gameName} (${region})`);
+    res.json({ success: true, gameName, puuid, region });
+  } catch (err) {
+    console.error('[Auth] from-token error:', err.response?.status, err.response?.data || err.message);
+    res.status(401).json({ error: 'INVALID_TOKEN' });
+  }
+});
+
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { username, password, region } = req.body;
   if (!username || !password)
