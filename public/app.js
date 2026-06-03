@@ -261,6 +261,7 @@ async function handleLogout() {
   $('matchStats').classList.add('hidden');
   state.collectionLoaded = false;
   document.querySelector('.night-market-section')?.remove();
+  document.querySelector('.wishlist-banner')?.remove();
 
   // 重置回商店 tab
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -633,6 +634,22 @@ async function loadStore() {
   }
 
   if (data.remainingSeconds > 0) startCountdown(data.remainingSeconds);
+
+  // Wishlist 命中 Banner
+  const wishlist = new Set(getWishlist());
+  const hits = (data.dailyOffers || []).filter(s => s.uuid && wishlist.has(s.uuid));
+  document.querySelector('.wishlist-banner')?.remove();
+  if (hits.length > 0) {
+    const banner = document.createElement('div');
+    banner.className = 'wishlist-banner';
+    banner.innerHTML = `
+      <div class="wb-icon">♥</div>
+      <div class="wb-body">
+        <div class="wb-title">今日心願達成 — 快去買！</div>
+        <div class="wb-skins">${hits.map(s => s.name).join('、')}</div>
+      </div>`;
+    $('storeGrid').before(banner);
+  }
 }
 
 function buildSkinCard(skin, isNight) {
