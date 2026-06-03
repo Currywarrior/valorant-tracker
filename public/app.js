@@ -118,8 +118,10 @@ async function cacheMaps() {
       const pick = splashMaps[Math.floor(Math.random() * splashMaps.length)];
       const loginEl = $('loginModal');
       if (loginEl) {
-        loginEl.style.backgroundImage =
-          `linear-gradient(to right, rgba(5,8,12,0.15) 0%, rgba(5,8,12,0.1) 55%, rgba(5,8,12,0) 100%), url('${pick.splash}')`;
+        loginEl.style.backgroundImage = [
+          `linear-gradient(to top, rgba(5,8,12,0.88) 0%, rgba(5,8,12,0.5) 35%, rgba(5,8,12,0.1) 70%, rgba(5,8,12,0) 100%)`,
+          `url('${pick.splash}')`
+        ].join(', ');
         loginEl.style.backgroundSize = 'cover';
         loginEl.style.backgroundPosition = 'center';
       }
