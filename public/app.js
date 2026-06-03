@@ -111,8 +111,9 @@ async function cacheMaps() {
       state.maps[m.displayName] = m.splash || m.listViewIcon || '';
     });
 
-    // 登入頁背景：隨機挑一張有 splash 的地圖
-    const splashMaps = maps.filter(m => m.splash && m.displayName !== 'The Range');
+    // 登入頁背景：只用目前在排位池的地圖
+    const VAULTED = new Set(['The Range', 'Fracture', 'Breeze']);
+    const splashMaps = maps.filter(m => m.splash && !VAULTED.has(m.displayName));
     if (splashMaps.length > 0) {
       const pick = splashMaps[Math.floor(Math.random() * splashMaps.length)];
       const loginEl = $('loginModal');
