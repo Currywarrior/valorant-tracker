@@ -595,7 +595,7 @@ async function loadStore() {
   }
   document.querySelector('.night-market-section')?.remove();
 
-  const data = await apiFetch('/api/store');
+  const data = await apiFetch('/api/store', { method: 'POST' });
 
   if (data.error) {
     if (data.error === 'NOT_AUTHENTICATED' || data.error === 'TOKEN_EXPIRED') {
