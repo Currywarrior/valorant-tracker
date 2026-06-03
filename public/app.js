@@ -119,7 +119,7 @@ async function cacheMaps() {
       const loginEl = $('loginModal');
       if (loginEl) {
         loginEl.style.backgroundImage =
-          `linear-gradient(rgba(5,8,12,0.55), rgba(5,8,12,0.65)), url('${pick.splash}')`;
+          `linear-gradient(to right, rgba(5,8,12,0.15) 0%, rgba(5,8,12,0.1) 55%, rgba(5,8,12,0) 100%), url('${pick.splash}')`;
         loginEl.style.backgroundSize = 'cover';
         loginEl.style.backgroundPosition = 'center';
       }

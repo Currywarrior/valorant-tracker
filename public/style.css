@@ -210,62 +210,65 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   inset: 0;
   background: #08090D center/cover no-repeat;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-end;
   z-index: 200;
   overflow: hidden;
 }
 
-/* 登入頁背景斜線紋路 */
-#loginModal::before {
-  content: '';
+/* 左側大標題浮水印 */
+#loginModal::after {
+  content: 'VAL\ATRACKER';
+  white-space: pre;
   position: absolute;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(-45deg, transparent, transparent 34px, rgba(255, 70, 85, 0.018) 34px, rgba(255, 70, 85, 0.018) 35px),
-    repeating-linear-gradient( 45deg, transparent, transparent 34px, rgba(255, 70, 85, 0.018) 34px, rgba(255, 70, 85, 0.018) 35px);
+  left: 52px;
+  bottom: 48px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 88px;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.07);
   pointer-events: none;
+  user-select: none;
+  z-index: 0;
 }
 
+/* 右側 panel */
 .login-box {
-  background: rgba(8, 9, 13, 0.82);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 70, 85, 0.25);
-  border-top: 2px solid var(--accent);
-  padding: 48px 44px;
-  width: 430px;
-  max-width: 96vw;
-  border-radius: 2px;
-  animation: loginEntrance 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-  box-shadow:
-    0 0 60px rgba(255, 70, 85, 0.12),
-    0 0 0 1px rgba(255, 70, 85, 0.08),
-    0 40px 80px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 rgba(255,255,255,0.04);
+  background: rgba(5, 8, 12, 0.92);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: none;
+  border-left: 1px solid rgba(255, 70, 85, 0.2);
+  border-top: 3px solid var(--accent);
+  border-radius: 0;
+  padding: 0 56px;
+  width: 460px;
+  max-width: 46vw;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  box-shadow: -40px 0 80px rgba(0, 0, 0, 0.6);
   position: relative;
   z-index: 1;
   overflow: hidden;
+  animation: loginEntrance 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* 角落裝飾 — Valorant 風格 */
-.lc {
-  position: absolute;
-  width: 18px; height: 18px;
-  pointer-events: none;
-  z-index: 10;
-}
-.lc-tl { top: 8px; left: 8px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
-.lc-br { bottom: 8px; right: 8px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+/* 角落裝飾隱藏（panel 設計不需要） */
+.lc { display: none; }
 
-/* 大型 V 浮水印 */
+/* 大型 V 浮水印（panel 右下角） */
 .login-watermark {
   position: absolute;
-  bottom: -40px; right: -16px;
+  bottom: -60px; right: -20px;
   font-family: 'Rajdhani', sans-serif;
-  font-size: 240px;
+  font-size: 280px;
   font-weight: 900;
-  color: rgba(255, 70, 85, 0.05);
+  color: rgba(255, 70, 85, 0.04);
   line-height: 1;
   letter-spacing: -0.05em;
   pointer-events: none;
@@ -275,11 +278,12 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .login-brand {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.22em;
   color: var(--text);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  margin-top: 0;
   text-transform: uppercase;
   position: relative;
   z-index: 1;
