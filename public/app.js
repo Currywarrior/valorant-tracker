@@ -112,8 +112,8 @@ async function cacheMaps() {
     });
 
     // 登入頁背景：只用目前在排位池的地圖
-    const VAULTED = new Set(['The Range', 'Fracture', 'Breeze']);
-    const splashMaps = maps.filter(m => m.splash && !VAULTED.has(m.displayName));
+    const RANKED = new Set(['ascent', 'split', 'bind', 'haven', 'icebox', 'lotus', 'sunset', 'abyss', 'pearl']);
+    const splashMaps = maps.filter(m => m.splash && RANKED.has(m.displayName?.toLowerCase()));
     if (splashMaps.length > 0) {
       const pick = splashMaps[Math.floor(Math.random() * splashMaps.length)];
       const loginEl = $('loginModal');
