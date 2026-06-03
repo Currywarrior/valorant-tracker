@@ -21,18 +21,37 @@
       <div class="login-watermark" aria-hidden="true">V</div>
       <div class="login-brand"><span class="brand-slash">//</span> VAL TRACKER</div>
       <p class="login-sub">選擇地區，以 Riot 官方頁面登入</p>
-      <div class="field-group">
-        <label class="field-label">伺服器地區</label>
-        <select id="regionSelect" class="field-input field-select">
-          <option value="ap">亞太 AP（台灣、日本、東南亞）</option>
-          <option value="na">北美 NA</option>
-          <option value="eu">歐洲 EU</option>
-          <option value="kr">韓國 KR</option>
-        </select>
+
+      <!-- 步驟一：選地區 + 開 popup -->
+      <div id="loginStep1">
+        <div class="field-group">
+          <label class="field-label">伺服器地區</label>
+          <select id="regionSelect" class="field-input field-select">
+            <option value="ap">亞太 AP（台灣、日本、東南亞）</option>
+            <option value="na">北美 NA</option>
+            <option value="eu">歐洲 EU</option>
+            <option value="kr">韓國 KR</option>
+          </select>
+        </div>
+        <button id="loginBtn" class="login-btn" onclick="handleLogin()">以 Riot 帳號登入</button>
       </div>
-      <button id="loginBtn" class="login-btn" onclick="handleLogin()">以 Riot 帳號登入</button>
+
+      <!-- 步驟二：貼上登入後的網址 -->
+      <div id="loginStep2" style="display:none;">
+        <p class="login-sub" style="margin-bottom:1rem;">
+          已開啟 Riot 登入視窗。<br>
+          登入完成後，複製彈出視窗網址列的完整網址，貼到下方。
+        </p>
+        <div class="field-group">
+          <label class="field-label">貼上網址</label>
+          <input type="text" id="tokenUrlInput" class="field-input" placeholder="https://playvalorant.com/opt_in#access_token=...">
+        </div>
+        <button class="login-btn" onclick="handleTokenPaste()">確認登入</button>
+        <button class="login-btn" style="background:transparent;border:1px solid #555;margin-top:0.5rem;" onclick="resetLogin()">重新開始</button>
+      </div>
+
       <p id="loginError" class="error-text"></p>
-      <p class="disclaimer-text">點擊後跳轉至 Riot 官方登入頁，本站不會取得你的帳號密碼。</p>
+      <p class="disclaimer-text">本站不會取得你的帳號密碼，登入在 Riot 官方頁面完成。</p>
     </div>
   </div>
 

@@ -162,7 +162,57 @@ function setupListeners() {
 
 function handleLogin() {
   const region = $('regionSelect').value;
-  window.location.href = `/auth/start?region=${region}`;
+  sessionStorage.setItem('loginRegion', region);
+
+  const authUrl = 'https://auth.riotgames.com/authorize?' + new URLSearchParams({
+    redirect_uri: 'https://playvalorant.com/opt_in',
+    client_id: 'play-valorant-web-prod',
+    response_type: 'token id_token',
+    nonce: Math.random().toString(36).slice(2),
+    scope: 'openid',
+  });
+
+  window.open(authUrl, 'riot-auth', 'width=480,height=680,left=200,top=80');
+  $('loginStep1').style.display = 'none';
+  $('loginStep2').style.display = 'block';
+  $('loginError').textContent = '';
+}
+
+function resetLogin() {
+  $('loginStep1').style.display = 'block';
+  $('loginStep2').style.display = 'none';
+  $('tokenUrlInput').value = '';
+  $('loginError').textContent = '';
+}
+
+async function handleTokenPaste() {
+  const raw = $('tokenUrlInput').value.trim();
+  const errEl = $('loginError');
+  errEl.textContent = '';
+
+  // 支援貼完整 URL 或只貼 hash 部分
+  let hash = raw;
+  if (raw.includes('#')) hash = raw.split('#')[1];
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get('access_token');
+
+  if (!accessToken) {
+    errEl.textContent = '找不到 access_token，請確認貼入的是完整網址';
+    return;
+  }
+
+  const region = sessionStorage.getItem('loginRegion') || 'ap';
+  const data = await apiFetch('/api/auth/from-token', {
+    method: 'POST',
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (data.error) {
+    errEl.textContent = data.error === 'INVALID_TOKEN' ? 'Token 無效或已過期，請重新登入' : '登入失敗：' + data.error;
+    return;
+  }
+
+  onLoginSuccess(data);
 }
 
 
