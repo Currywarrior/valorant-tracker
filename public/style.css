@@ -716,9 +716,9 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 /* ─── 頁面共用 ─── */
 .tab-page {
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
-  padding: 28px 24px 48px;
+  padding: 28px 16px 48px;
 }
 
 .page-header {
@@ -4582,8 +4582,8 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .bundles-grid,
 .bundles-regular-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
 }
 .bundles-container {
   display: flex;
@@ -4619,8 +4619,8 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .vct-toggle.open .vct-chevron { transform: rotate(180deg); }
 .vct-grid {
   display: none;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
 }
 .vct-grid.vct-open { display: grid; }
 .bc-card {
