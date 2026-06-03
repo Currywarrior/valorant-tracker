@@ -106,12 +106,25 @@ async function cacheMaps() {
   try {
     const res = await fetch('https://valorant-api.com/v1/maps');
     const json = await res.json();
-    json.data.forEach(m => {
-      // splash 是寬版背景圖，listViewIcon 是縮圖；都試著存
+    const maps = json.data || [];
+    maps.forEach(m => {
       state.maps[m.displayName] = m.splash || m.listViewIcon || '';
     });
+
+    // 登入頁背景：隨機挑一張有 splash 的地圖
+    const splashMaps = maps.filter(m => m.splash && m.displayName !== 'The Range');
+    if (splashMaps.length > 0) {
+      const pick = splashMaps[Math.floor(Math.random() * splashMaps.length)];
+      const loginEl = $('loginModal');
+      if (loginEl) {
+        loginEl.style.backgroundImage =
+          `linear-gradient(rgba(5,8,12,0.55), rgba(5,8,12,0.65)), url('${pick.splash}')`;
+        loginEl.style.backgroundSize = 'cover';
+        loginEl.style.backgroundPosition = 'center';
+      }
+    }
   } catch {
-    // 地圖圖片快取失敗不影響主功能，跳過
+    // 失敗不影響主功能
   }
 }
 

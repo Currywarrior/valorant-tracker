@@ -208,7 +208,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 #loginModal {
   position: fixed;
   inset: 0;
-  background: rgba(5, 8, 12, 0.98);
+  background: #08090D center/cover no-repeat;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -228,7 +228,9 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 .login-box {
-  background: var(--bg-card);
+  background: rgba(8, 9, 13, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 70, 85, 0.25);
   border-top: 2px solid var(--accent);
   padding: 48px 44px;
