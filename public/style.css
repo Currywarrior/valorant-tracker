@@ -803,12 +803,26 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 /* ─── 商店格線 ─── */
 .store-grid {
   display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* 夜市維持 4 欄 */
+.night-market-section .store-grid {
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
 
 @media (max-width: 900px) { .store-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .store-grid { grid-template-columns: 1fr; } }
+
+/* 每日商店的大圖片區（夜市 card 維持原尺寸） */
+.skin-card:not(.night-skin) .skin-img-wrap {
+  height: 300px;
+}
+.skin-card:not(.night-skin) .skin-img {
+  max-height: 240px;
+}
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
 .skin-card::before {
