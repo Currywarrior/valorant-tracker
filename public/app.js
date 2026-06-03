@@ -169,7 +169,7 @@ function handleLogin() {
     client_id: 'play-valorant-web-prod',
     response_type: 'token id_token',
     nonce: Math.random().toString(36).slice(2),
-    scope: 'openid',
+    scope: 'account openid',
   });
 
   window.open(authUrl, 'riot-auth', 'width=480,height=680,left=200,top=80');
