@@ -602,18 +602,28 @@ function ytEmbedUrl(raw) {
 
 function spSetMedia(embedUrl, fallbackIcon) {
   const inner = document.getElementById('sp-media-inner');
-  const loader = document.getElementById('sp-loader');
   if (!inner) return;
-  inner.style.opacity = '0';
+  if (!embedUrl) return;
+
+  // iframe 在背後靜默載入，圖片繼續顯示；YouTube 準備好後才淡入蓋上
+  const iframe = document.createElement('iframe');
+  iframe.className = 'sp-iframe';
+  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;';
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  iframe.allowFullscreen = true;
+  iframe.src = embedUrl;
+  inner.appendChild(iframe);
+
   setTimeout(() => {
-    if (embedUrl) {
-      inner.innerHTML = `<iframe class="sp-iframe" src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-    } else {
-      inner.innerHTML = `<img class="sp-fallback-img" src="${fallbackIcon}" alt="">`;
+    iframe.style.transition = 'opacity 0.4s';
+    iframe.style.opacity = '1';
+    const img = inner.querySelector('.sp-fallback-img');
+    if (img) {
+      img.style.transition = 'opacity 0.4s';
+      img.style.opacity = '0';
+      setTimeout(() => img.remove(), 400);
     }
-    inner.style.opacity = '1';
-    if (loader) loader.style.display = 'none';
-  }, embedUrl ? 180 : 0);
+  }, 1400);
 }
 
 async function openSkinPreview(skin) {
@@ -677,13 +687,13 @@ async function openSkinPreview(skin) {
     const rect = mediaArea.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    const tiltX = (0.5 - y) * 30;
-    const tiltY = (x - 0.5) * 30;
+    const tiltX = (0.5 - y) * 18;
+    const tiltY = (x - 0.5) * 18;
     img.style.animation = 'none';
-    img.style.transform = `perspective(620px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06) translateZ(22px)`;
+    img.style.transform = `perspective(620px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.04) translateZ(16px)`;
     img.style.transition = 'transform 0.06s linear';
     glareEl.style.opacity = '1';
-    glareEl.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.2) 0%, transparent 60%)`;
+    glareEl.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.08) 0%, transparent 60%)`;
   });
 
   mediaArea.addEventListener('mouseleave', () => {

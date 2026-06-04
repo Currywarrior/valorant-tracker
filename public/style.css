@@ -4872,11 +4872,11 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 @keyframes sp3dFloat {
-  0%   { transform: perspective(620px) rotateY(-16deg) rotateX(5deg)  translateY(0px); }
-  25%  { transform: perspective(620px) rotateY(0deg)   rotateX(-4deg) translateY(-10px); }
-  50%  { transform: perspective(620px) rotateY(16deg)  rotateX(5deg)  translateY(0px); }
-  75%  { transform: perspective(620px) rotateY(0deg)   rotateX(-4deg) translateY(-10px); }
-  100% { transform: perspective(620px) rotateY(-16deg) rotateX(5deg)  translateY(0px); }
+  0%   { transform: perspective(620px) rotateY(-10deg) rotateX(3deg)  translateY(0px); }
+  25%  { transform: perspective(620px) rotateY(0deg)   rotateX(-2deg) translateY(-7px); }
+  50%  { transform: perspective(620px) rotateY(10deg)  rotateX(3deg)  translateY(0px); }
+  75%  { transform: perspective(620px) rotateY(0deg)   rotateX(-2deg) translateY(-7px); }
+  100% { transform: perspective(620px) rotateY(-10deg) rotateX(3deg)  translateY(0px); }
 }
 .sp-fallback-img {
   max-width: 70%;
