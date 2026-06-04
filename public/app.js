@@ -666,6 +666,36 @@ async function openSkinPreview(skin) {
   document.body.appendChild(ol);
   requestAnimationFrame(() => ol.classList.add('sp-in'));
 
+  // 滑鼠跟隨 3D 傾斜（只對靜態圖片有效，iframe 不觸發）
+  const mediaArea = ol.querySelector('.sp-media');
+  const glareEl = document.createElement('div');
+  glareEl.className = 'sp-glare';
+  mediaArea.appendChild(glareEl);
+
+  mediaArea.addEventListener('mousemove', (e) => {
+    const img = ol.querySelector('.sp-fallback-img');
+    if (!img) return;
+    const rect = mediaArea.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    const tiltX = (0.5 - y) * 30;
+    const tiltY = (x - 0.5) * 30;
+    img.style.animation = 'none';
+    img.style.transform = `perspective(620px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06) translateZ(22px)`;
+    img.style.transition = 'transform 0.06s linear';
+    glareEl.style.opacity = '1';
+    glareEl.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.2) 0%, transparent 60%)`;
+  });
+
+  mediaArea.addEventListener('mouseleave', () => {
+    const img = ol.querySelector('.sp-fallback-img');
+    if (!img) return;
+    img.style.transition = 'transform 0.5s ease';
+    img.style.transform = '';
+    setTimeout(() => { if (img) { img.style.animation = ''; img.style.transition = ''; } }, 500);
+    glareEl.style.opacity = '0';
+  });
+
   const stopVideo = () => { const f = ol.querySelector('iframe'); if (f) f.src = ''; };
   const close = () => {
     stopVideo();

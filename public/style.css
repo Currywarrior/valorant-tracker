@@ -4871,12 +4871,29 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   display: block;
 }
 
+@keyframes sp3dFloat {
+  0%   { transform: perspective(620px) rotateY(-16deg) rotateX(5deg)  translateY(0px); }
+  25%  { transform: perspective(620px) rotateY(0deg)   rotateX(-4deg) translateY(-10px); }
+  50%  { transform: perspective(620px) rotateY(16deg)  rotateX(5deg)  translateY(0px); }
+  75%  { transform: perspective(620px) rotateY(0deg)   rotateX(-4deg) translateY(-10px); }
+  100% { transform: perspective(620px) rotateY(-16deg) rotateX(5deg)  translateY(0px); }
+}
 .sp-fallback-img {
   max-width: 70%;
   max-height: 70%;
   object-fit: contain;
-  animation: inspFloat 3.2s ease-in-out infinite;
-  filter: drop-shadow(0 0 32px rgba(255,255,255,0.08));
+  animation: sp3dFloat 5.5s ease-in-out infinite;
+  filter: drop-shadow(0 12px 36px rgba(0,0,0,0.55)) drop-shadow(0 0 18px rgba(255,255,255,0.06));
+  will-change: transform;
+}
+.sp-glare {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  mix-blend-mode: screen;
+  transition: opacity 0.22s;
 }
 
 .sp-media-loader {
