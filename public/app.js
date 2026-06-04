@@ -572,32 +572,169 @@ function buildCollectionCard(skin) {
     });
   }
 
-  // 點擊武器圖片區開啟 inspect 放大鏡
-  card.querySelector('.col-img-wrap').addEventListener('click', () => showInspectOverlay(skin));
+  // 點擊武器圖片區開啟皮膚預覽
+  card.querySelector('.col-img-wrap').addEventListener('click', () => openSkinPreview(skin));
 
   setTimeout(() => add3DTilt(card), 300 + Math.random() * 200);
   return card;
 }
 
-function showInspectOverlay(skin) {
-  document.getElementById('inspect-ol')?.remove();
+// ─── 皮膚預覽 Modal ───
+
+const LEVEL_TYPE_LABELS = {
+  'EEquippableSkinLevelItem::VFX':              '視覺特效',
+  'EEquippableSkinLevelItem::Animation':        '動畫升級',
+  'EEquippableSkinLevelItem::Finisher':         '擊殺動畫',
+  'EEquippableSkinLevelItem::KillBanner':       '擊殺橫幅',
+  'EEquippableSkinLevelItem::InspectAndKill':   '觀察動畫',
+  'EEquippableSkinLevelItem::SoundEffects':     '音效升級',
+  'EEquippableSkinLevelItem::TopFrag':          '頂尖射手',
+  'EEquippableSkinLevelItem::HeartbeatAndMapSensor': '心跳感應',
+};
+
+function ytEmbedUrl(raw) {
+  if (!raw) return null;
+  const m = raw.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (!m) return null;
+  const id = m[1];
+  return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&modestbranding=1&controls=1&rel=0`;
+}
+
+function spSetMedia(embedUrl, fallbackIcon) {
+  const inner = document.getElementById('sp-media-inner');
+  const loader = document.getElementById('sp-loader');
+  if (!inner) return;
+  inner.style.opacity = '0';
+  setTimeout(() => {
+    if (embedUrl) {
+      inner.innerHTML = `<iframe class="sp-iframe" src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    } else {
+      inner.innerHTML = `<img class="sp-fallback-img" src="${fallbackIcon}" alt="">`;
+    }
+    inner.style.opacity = '1';
+    if (loader) loader.style.display = 'none';
+  }, embedUrl ? 180 : 0);
+}
+
+async function openSkinPreview(skin) {
+  const name = skin.name || skin.skinName || 'Unknown';
+  const weaponName = skin.weaponName || '';
+  const icon = skin.icon || '';
+  const cost = skin.cost || null;
+  const contentTierUuid = skin.contentTierUuid || null;
+  const tier = contentTierUuid
+    ? (TIER_UUID[contentTierUuid.toLowerCase()] || null)
+    : (cost ? costToTier(cost) : null);
+
+  document.getElementById('skin-preview-ol')?.remove();
+
   const ol = document.createElement('div');
-  ol.id = 'inspect-ol';
+  ol.id = 'skin-preview-ol';
+  ol.className = 'sp-overlay';
+  if (tier) ol.dataset.tier = tier;
+
+  const wlUuid = skin.uuid || '';
+  const inWishlist = wlUuid && getWishlist().includes(wlUuid);
+
   ol.innerHTML = `
-    <div class="insp-bg"></div>
-    <div class="insp-body">
-      <img class="insp-img" src="${skin.icon || ''}" alt="${skin.skinName}" draggable="false">
-      <div class="insp-name">${skin.skinName}</div>
-      <div class="insp-weapon">${skin.weaponName}</div>
+    <div class="sp-backdrop"></div>
+    <div class="sp-panel">
+      <div class="sp-media">
+        <div class="sp-media-inner" id="sp-media-inner">
+          <img class="sp-fallback-img" src="${icon}" alt="${name}">
+        </div>
+        <div class="sp-media-loader" id="sp-loader"><div class="sp-spinner"></div></div>
+      </div>
+      <div class="sp-info">
+        <div class="sp-info-top">
+          ${contentTierUuid ? `<img class="sp-tier-icon" src="https://media.valorant-api.com/contenttiers/${contentTierUuid}/displayicon.png" alt="" onerror="this.style.display='none'">` : ''}
+          <div class="sp-names">
+            <div class="sp-skin-name">${name}</div>
+            ${weaponName ? `<div class="sp-weapon-name">${weaponName}</div>` : ''}
+          </div>
+          <button class="sp-close" id="sp-close">&#x2715;</button>
+        </div>
+        <div class="sp-levels" id="sp-levels"></div>
+        <div class="sp-footer">
+          ${wlUuid ? `<button class="sp-wishlist-btn${inWishlist ? ' active' : ''}" id="sp-wl-btn" data-uuid="${wlUuid}">${inWishlist ? '&#x2665; 已加入心願清單' : '&#x2661; 加入心願清單'}</button>` : '<div></div>'}
+          ${cost ? `<div class="sp-cost"><img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png" class="sp-vp-icon" alt="VP">${cost.toLocaleString()} VP</div>` : ''}
+        </div>
+      </div>
     </div>
   `;
+
   document.body.appendChild(ol);
-  requestAnimationFrame(() => ol.classList.add('insp-in'));
-  const close = () => { ol.classList.remove('insp-in'); setTimeout(() => ol.remove(), 260); };
-  ol.querySelector('.insp-bg').addEventListener('click', close);
+  requestAnimationFrame(() => ol.classList.add('sp-in'));
+
+  const stopVideo = () => { const f = ol.querySelector('iframe'); if (f) f.src = ''; };
+  const close = () => {
+    stopVideo();
+    ol.classList.remove('sp-in');
+    setTimeout(() => ol.remove(), 280);
+  };
+
+  ol.querySelector('.sp-backdrop').addEventListener('click', close);
+  document.getElementById('sp-close').addEventListener('click', close);
   document.addEventListener('keydown', function esc(e) {
     if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
   });
+
+  const wlBtn = document.getElementById('sp-wl-btn');
+  if (wlBtn) {
+    wlBtn.addEventListener('click', () => {
+      const nowIn = toggleWishlist(wlBtn.dataset.uuid);
+      wlBtn.classList.toggle('active', nowIn);
+      wlBtn.innerHTML = nowIn ? '&#x2665; 已加入心願清單' : '&#x2661; 加入心願清單';
+    });
+  }
+
+  // 如果 store 已回傳影片 URL，立刻播
+  if (skin.streamedVideo) spSetMedia(ytEmbedUrl(skin.streamedVideo), icon);
+
+  // 用 skinUuid 抓完整皮膚資料（含所有等級影片）
+  const skinUuid = skin.skinUuid;
+  if (!skinUuid) return;
+
+  try {
+    const r = await fetch(`https://valorant-api.com/v1/weapons/skins/${skinUuid}?language=zh-TW`);
+    const json = await r.json();
+    const fullSkin = json.data;
+    if (!fullSkin?.levels?.length) return;
+
+    const levels = fullSkin.levels;
+    const levelsEl = document.getElementById('sp-levels');
+    if (!levelsEl) return;
+
+    if (levels.length > 1) {
+      levelsEl.innerHTML = levels.map((l, i) => {
+        const label = (l.levelItem ? (LEVEL_TYPE_LABELS[l.levelItem] || `等級 ${i + 1}`) : '基礎外觀');
+        const hasVideo = !!l.streamedVideo;
+        return `<button class="sp-level-btn${!hasVideo ? ' no-video' : ''}" data-idx="${i}" data-video="${l.streamedVideo || ''}">${label}</button>`;
+      }).join('');
+
+      const btnEls = levelsEl.querySelectorAll('.sp-level-btn');
+      btnEls.forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.classList.contains('no-video')) return;
+          btnEls.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          spSetMedia(ytEmbedUrl(btn.dataset.video), icon);
+        });
+      });
+
+      const firstWithVideo = levelsEl.querySelector('.sp-level-btn:not(.no-video)');
+      if (firstWithVideo) firstWithVideo.classList.add('active');
+    }
+
+    // 如果還沒播影片，從等級清單中找第一個有影片的等級
+    if (!skin.streamedVideo) {
+      const currentLevelVideo = levels.find(l => l.uuid?.toLowerCase() === skin.uuid?.toLowerCase())?.streamedVideo;
+      const fallbackVideo = levels.find(l => l.streamedVideo)?.streamedVideo;
+      spSetMedia(ytEmbedUrl(currentLevelVideo || fallbackVideo), icon);
+    }
+  } catch {
+    // 靜默失敗，圖片 fallback 已顯示
+  }
 }
 
 // ─── 商店 ───
@@ -717,6 +854,9 @@ function buildSkinCard(skin, isNight) {
       wishBtn.classList.add('pop');
     });
   }
+
+  // 點擊圖片區開啟皮膚預覽
+  card.querySelector('.skin-img-wrap').addEventListener('click', () => openSkinPreview(skin));
 
   // 3D 傾斜（等翻轉入場動畫結束後再啟用，避免衝突）
   const flipDuration = 550 + (parseInt(card.style.animationDelay) || 0);

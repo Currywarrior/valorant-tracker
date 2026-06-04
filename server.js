@@ -743,7 +743,8 @@ app.post('/api/store', async (req, res) => {
     const dailyOffers = await Promise.all(rawOffers.map(async (offer) => {
       const uuid = offer.Rewards?.[0]?.ItemID;
       const skin = uuid ? await fetchSkinData(uuid) : { displayName: 'Unknown Skin', displayIcon: null };
-      return { uuid, name: skin.displayName, icon: skin.displayIcon, cost: offer.Cost?.[VP_CURRENCY] || 0 };
+      const skinInfo = uuid ? (skinLevelCache.levels?.[uuid] || skinLevelCache.levels?.[uuid?.toLowerCase()] || {}) : {};
+      return { uuid, name: skin.displayName, icon: skin.displayIcon, cost: offer.Cost?.[VP_CURRENCY] || 0, skinUuid: skinInfo.skinUuid || null, streamedVideo: skin.streamedVideo || null };
     }));
 
     const today = new Date().toISOString().slice(0, 10);
@@ -755,11 +756,13 @@ app.post('/api/store', async (req, res) => {
       nightMarket = await Promise.all(rawNight.map(async (offer) => {
         const uuid = offer.Offer?.Rewards?.[0]?.ItemID;
         const skin = uuid ? await fetchSkinData(uuid) : { displayName: 'Unknown Skin', displayIcon: null };
+        const skinInfo = uuid ? (skinLevelCache.levels?.[uuid] || skinLevelCache.levels?.[uuid?.toLowerCase()] || {}) : {};
         return {
           uuid, name: skin.displayName, icon: skin.displayIcon,
           cost: offer.Offer?.Cost?.[VP_CURRENCY] || 0,
           discountCost: offer.DiscountCosts?.[VP_CURRENCY] || 0,
-          discountPercent: Math.round(offer.DiscountPercent || 0)
+          discountPercent: Math.round(offer.DiscountPercent || 0),
+          skinUuid: skinInfo.skinUuid || null, streamedVideo: skin.streamedVideo || null
         };
       }));
     }

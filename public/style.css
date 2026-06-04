@@ -4790,3 +4790,253 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   letter-spacing: 0.5px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
+
+/* ══════════════════════════════════
+   SKIN PREVIEW MODAL
+══════════════════════════════════ */
+.sp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.28s;
+}
+.sp-overlay.sp-in { opacity: 1; }
+
+.sp-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 3, 6, 0.93);
+  backdrop-filter: blur(18px);
+}
+
+.sp-panel {
+  position: relative;
+  width: min(700px, 94vw);
+  background: #090b12;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+  transform: scale(0.93) translateY(14px);
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.75);
+}
+.sp-overlay.sp-in .sp-panel { transform: scale(1) translateY(0); }
+
+/* 頂部稀有度色條 */
+.sp-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  z-index: 2;
+}
+.sp-overlay[data-tier="select"]    .sp-panel::before { background: var(--tier-select); }
+.sp-overlay[data-tier="deluxe"]    .sp-panel::before { background: var(--tier-deluxe); }
+.sp-overlay[data-tier="premium"]   .sp-panel::before { background: var(--tier-premium); }
+.sp-overlay[data-tier="ultra"]     .sp-panel::before { background: var(--tier-ultra); }
+.sp-overlay[data-tier="exclusive"] .sp-panel::before { background: var(--tier-exclusive); }
+
+/* 稀有度暈光 */
+.sp-overlay[data-tier="ultra"]     .sp-panel { box-shadow: 0 40px 100px rgba(0,0,0,0.75), 0 0 60px rgba(250, 214, 99, 0.06); }
+.sp-overlay[data-tier="exclusive"] .sp-panel { box-shadow: 0 40px 100px rgba(0,0,0,0.75), 0 0 60px rgba(245, 149, 91, 0.06); }
+.sp-overlay[data-tier="premium"]   .sp-panel { box-shadow: 0 40px 100px rgba(0,0,0,0.75), 0 0 60px rgba(209, 84, 141, 0.06); }
+
+/* 影片/圖片區 */
+.sp-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #050608;
+  overflow: hidden;
+}
+
+.sp-media-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.18s ease;
+}
+
+.sp-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.sp-fallback-img {
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  animation: inspFloat 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 32px rgba(255,255,255,0.08));
+}
+
+.sp-media-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+@keyframes sp-spin {
+  to { transform: rotate(360deg); }
+}
+.sp-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255,255,255,0.08);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sp-spin 0.7s linear infinite;
+}
+
+/* 資訊區 */
+.sp-info { padding: 14px 18px 16px; }
+
+.sp-info-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sp-tier-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.sp-names { flex: 1; min-width: 0; }
+
+.sp-skin-name {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.sp-weapon-name {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* 稀有度對應皮膚名字顏色 */
+.sp-overlay[data-tier="select"]    .sp-skin-name { color: var(--tier-select); }
+.sp-overlay[data-tier="deluxe"]    .sp-skin-name { color: var(--tier-deluxe); }
+.sp-overlay[data-tier="premium"]   .sp-skin-name { color: var(--tier-premium); }
+.sp-overlay[data-tier="ultra"]     .sp-skin-name { color: var(--tier-ultra); }
+.sp-overlay[data-tier="exclusive"] .sp-skin-name { color: var(--tier-exclusive); }
+
+.sp-close {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-dim);
+  font-size: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.sp-close:hover { color: var(--accent); border-color: rgba(255,70,85,0.45); }
+
+/* 等級 Tabs */
+.sp-levels {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  min-height: 0;
+}
+
+.sp-level-btn {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sp-level-btn:hover:not(.no-video) {
+  background: rgba(255,255,255,0.07);
+  color: var(--text);
+}
+.sp-level-btn.active {
+  background: rgba(255,70,85,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sp-level-btn.no-video {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Footer */
+.sp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sp-wishlist-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.13);
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sp-wishlist-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sp-wishlist-btn.active {
+  background: rgba(255,70,85,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sp-cost {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--vp-color);
+  letter-spacing: 0.03em;
+}
+.sp-vp-icon { width: 16px; height: 16px; }
+
+/* 商店卡片圖片區加 zoom-in cursor */
+.skin-img-wrap { cursor: zoom-in; }
