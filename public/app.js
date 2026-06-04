@@ -643,7 +643,6 @@ async function openSkinPreview(skin) {
         <div class="sp-media-inner" id="sp-media-inner">
           <img class="sp-fallback-img" src="${icon}" alt="${name}">
         </div>
-        <div class="sp-media-loader" id="sp-loader"><div class="sp-spinner"></div></div>
       </div>
       <div class="sp-info">
         <div class="sp-info-top">
