@@ -603,6 +603,10 @@ function ytEmbedUrl(raw) {
 function spSetMedia(embedUrl, fallbackIcon) {
   const inner = document.getElementById('sp-media-inner');
   if (!inner) return;
+
+  // 清掉舊 iframe，避免切換等級時疊加
+  inner.querySelectorAll('iframe').forEach(f => { f.src = ''; f.remove(); });
+
   if (!embedUrl) return;
 
   // iframe 在背後靜默載入，圖片繼續顯示；YouTube 準備好後才淡入蓋上
@@ -754,10 +758,24 @@ async function openSkinPreview(skin) {
       const btnEls = levelsEl.querySelectorAll('.sp-level-btn');
       btnEls.forEach(btn => {
         btn.addEventListener('click', () => {
-          if (btn.classList.contains('no-video')) return;
           btnEls.forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-          spSetMedia(ytEmbedUrl(btn.dataset.video), icon);
+          if (btn.classList.contains('no-video')) {
+            // 沒影片：清掉舊 iframe，恢復靜態圖
+            const inner = document.getElementById('sp-media-inner');
+            if (inner) {
+              inner.querySelectorAll('iframe').forEach(f => { f.src = ''; f.remove(); });
+              if (!inner.querySelector('.sp-fallback-img')) {
+                const img = document.createElement('img');
+                img.className = 'sp-fallback-img';
+                img.src = icon;
+                img.alt = name;
+                inner.prepend(img);
+              }
+            }
+          } else {
+            spSetMedia(ytEmbedUrl(btn.dataset.video), icon);
+          }
         });
       });
 

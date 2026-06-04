@@ -326,7 +326,7 @@ let _currentAudio = null;
 window._playAgentAudioFile = function (fileName) {
   if (_currentAudio) { _currentAudio.pause(); _currentAudio = null; }
   const audio = new Audio(`/api/audio/${encodeURIComponent(fileName)}`);
-  audio.volume = 0.85;
+  audio.volume = 0.45;
   audio.play().catch(() => {});
   _currentAudio = audio;
 };
