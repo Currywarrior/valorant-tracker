@@ -698,42 +698,52 @@ async function openSkinPreview(skin) {
   requestAnimationFrame(() => ol.classList.add('sp-in'));
 
   // 滑鼠跟隨 3D 傾斜（只對靜態圖片有效，iframe 不觸發）
+  // reduced-motion 下整個停用；平時以 rAF 節流，每個重繪幀最多更新一次
   const mediaArea = ol.querySelector('.sp-media');
-  const glareEl = document.createElement('div');
-  glareEl.className = 'sp-glare';
-  mediaArea.appendChild(glareEl);
+  if (!REDUCE_MOTION) {
+    const glareEl = document.createElement('div');
+    glareEl.className = 'sp-glare';
+    mediaArea.appendChild(glareEl);
 
-  mediaArea.addEventListener('mousemove', (e) => {
-    const img = ol.querySelector('.sp-fallback-img');
-    if (!img) return;
-    const rect = mediaArea.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    const tiltX = (0.5 - y) * 22;
-    const tiltY = (x - 0.5) * 22;
-    img.style.animation = 'none';
-    img.style.transform = `perspective(560px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06) translateZ(24px)`;
-    img.style.transition = 'transform 0.05s linear';
-    // 方向性陰影：光源在游標，陰影往反方向偏，製造浮起的體積感
-    const shX = (0.5 - x) * 30;
-    const shY = (0.5 - y) * 30;
-    img.style.filter = `drop-shadow(${shX}px ${shY}px 24px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(255,255,255,0.07))`;
-    // 跟隨游標的亮點高光 + 隨角度掃動的斜向 sheen
-    glareEl.style.opacity = '1';
-    glareEl.style.background =
-      `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.14) 0%, transparent 55%),`
-      + `linear-gradient(${(x - 0.5) * 60 + 110}deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%)`;
-  });
+    let rafId = null, cx = 0, cy = 0;
+    mediaArea.addEventListener('mousemove', (e) => {
+      cx = e.clientX; cy = e.clientY;
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const img = ol.querySelector('.sp-fallback-img');
+        if (!img) return;
+        const rect = mediaArea.getBoundingClientRect();
+        const x = (cx - rect.left) / rect.width;
+        const y = (cy - rect.top) / rect.height;
+        const tiltX = (0.5 - y) * 22;
+        const tiltY = (x - 0.5) * 22;
+        img.style.animation = 'none';
+        img.style.transform = `perspective(560px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06) translateZ(24px)`;
+        img.style.transition = 'transform 0.05s linear';
+        // 方向性陰影：光源在游標，陰影往反方向偏，製造浮起的體積感
+        const shX = (0.5 - x) * 30;
+        const shY = (0.5 - y) * 30;
+        img.style.filter = `drop-shadow(${shX}px ${shY}px 24px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(255,255,255,0.07))`;
+        // 跟隨游標的亮點高光 + 隨角度掃動的斜向 sheen
+        glareEl.style.opacity = '1';
+        glareEl.style.background =
+          `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.14) 0%, transparent 55%),`
+          + `linear-gradient(${(x - 0.5) * 60 + 110}deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%)`;
+      });
+    });
 
-  mediaArea.addEventListener('mouseleave', () => {
-    const img = ol.querySelector('.sp-fallback-img');
-    if (!img) return;
-    img.style.transition = 'transform 0.5s ease, filter 0.5s ease';
-    img.style.transform = '';
-    img.style.filter = '';
-    setTimeout(() => { if (img) { img.style.animation = ''; img.style.transition = ''; } }, 500);
-    glareEl.style.opacity = '0';
-  });
+    mediaArea.addEventListener('mouseleave', () => {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      const img = ol.querySelector('.sp-fallback-img');
+      if (!img) return;
+      img.style.transition = 'transform 0.5s ease, filter 0.5s ease';
+      img.style.transform = '';
+      img.style.filter = '';
+      setTimeout(() => { if (img) { img.style.animation = ''; img.style.transition = ''; } }, 500);
+      glareEl.style.opacity = '0';
+    });
+  }
 
   const stopVideo = () => { const f = ol.querySelector('iframe'); if (f) f.src = ''; };
   const close = () => {
@@ -1578,28 +1588,40 @@ function openNewspaper() {
   $('newspaper-overlay').classList.remove('np-hidden');
 }
 
+// 系統若要求「減少動態效果」，停用滑鼠跟隨的 3D 傾斜互動
+const REDUCE_MOTION = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
 // 皮膚卡片：3D 傾斜 + cursor spotlight（隨滑鼠位置）
+// 以 requestAnimationFrame 節流：mousemove 只記座標，每個重繪幀最多寫一次 style
 function add3DTilt(card) {
+  if (REDUCE_MOTION) return;
   const tier = card.dataset.tier || '';
   const holoStrength = { select: 0.12, deluxe: 0.18, premium: 0.26, ultra: 0.34, exclusive: 0.44 }[tier] || 0;
 
+  let rafId = null, cx = 0, cy = 0;
   card.addEventListener('mousemove', (e) => {
-    const r = card.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    const y = e.clientY - r.top;
-    const nx = x / r.width  - 0.5;
-    const ny = y / r.height - 0.5;
-    card.style.transform = `perspective(800px) rotateY(${nx * 14}deg) rotateX(${-ny * 10}deg) translateY(-6px) scale(1.03)`;
-    card.style.transition = 'transform 0.08s ease, border-color 0.2s, box-shadow 0.2s';
-    card.style.setProperty('--spot-x', `${x}px`);
-    card.style.setProperty('--spot-y', `${y}px`);
-    card.style.setProperty('--spot-opacity', '1');
-    if (holoStrength > 0) {
-      card.style.setProperty('--holo-angle', `${(nx * 60 + 125).toFixed(1)}deg`);
-      card.style.setProperty('--holo-opacity', holoStrength);
-    }
+    cx = e.clientX; cy = e.clientY;
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      const r = card.getBoundingClientRect();
+      const x = cx - r.left;
+      const y = cy - r.top;
+      const nx = x / r.width  - 0.5;
+      const ny = y / r.height - 0.5;
+      card.style.transform = `perspective(800px) rotateY(${nx * 14}deg) rotateX(${-ny * 10}deg) translateY(-6px) scale(1.03)`;
+      card.style.transition = 'transform 0.08s ease, border-color 0.2s, box-shadow 0.2s';
+      card.style.setProperty('--spot-x', `${x}px`);
+      card.style.setProperty('--spot-y', `${y}px`);
+      card.style.setProperty('--spot-opacity', '1');
+      if (holoStrength > 0) {
+        card.style.setProperty('--holo-angle', `${(nx * 60 + 125).toFixed(1)}deg`);
+        card.style.setProperty('--holo-opacity', holoStrength);
+      }
+    });
   });
   card.addEventListener('mouseleave', () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     card.style.transform = '';
     card.style.transition = 'border-color 0.2s, box-shadow 0.2s';
     card.style.setProperty('--spot-opacity', '0');
@@ -1609,19 +1631,27 @@ function add3DTilt(card) {
 
 // 對戰卡片：輕微傾斜 + cursor spotlight
 function addMatchTilt(card) {
+  if (REDUCE_MOTION) return;
+  let rafId = null, cx = 0, cy = 0;
   card.addEventListener('mousemove', (e) => {
-    const r = card.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    const y = e.clientY - r.top;
-    const nx = x / r.width  - 0.5;
-    const ny = y / r.height - 0.5;
-    card.style.transform = `perspective(1200px) rotateY(${nx * 5}deg) rotateX(${-ny * 3}deg) translateY(-2px)`;
-    card.style.transition = 'transform 0.1s ease, background 0.15s, box-shadow 0.2s';
-    card.style.setProperty('--spot-x', `${x}px`);
-    card.style.setProperty('--spot-y', `${y}px`);
-    card.style.setProperty('--spot-opacity', '1');
+    cx = e.clientX; cy = e.clientY;
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      const r = card.getBoundingClientRect();
+      const x = cx - r.left;
+      const y = cy - r.top;
+      const nx = x / r.width  - 0.5;
+      const ny = y / r.height - 0.5;
+      card.style.transform = `perspective(1200px) rotateY(${nx * 5}deg) rotateX(${-ny * 3}deg) translateY(-2px)`;
+      card.style.transition = 'transform 0.1s ease, background 0.15s, box-shadow 0.2s';
+      card.style.setProperty('--spot-x', `${x}px`);
+      card.style.setProperty('--spot-y', `${y}px`);
+      card.style.setProperty('--spot-opacity', '1');
+    });
   });
   card.addEventListener('mouseleave', () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     card.style.transform = '';
     card.style.transition = 'background 0.15s, box-shadow 0.2s, transform 0.25s cubic-bezier(0.22,1,0.36,1)';
     card.style.setProperty('--spot-opacity', '0');
