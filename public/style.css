@@ -929,7 +929,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   border-radius: inherit;
 }
 
-/* 全息光澤層（只有有稀有度的卡片才有） */
+/* 稀有度光澤層（只有有稀有度的卡片才有）— 柔和單色掃光，不刺眼 */
 .skin-card[data-tier]::after {
   content: '';
   position: absolute;
@@ -937,26 +937,14 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   z-index: 3;
   pointer-events: none;
   border-radius: inherit;
-  background-image:
-    repeating-linear-gradient(
-      var(--holo-angle, 125deg),
-      #ff003366 0%,   #ff660066 8%,
-      #ffdd0066 16%,  #00ff7766 24%,
-      #00ccff66 32%,  #0033ff66 40%,
-      #aa00ff66 48%,  #ff003366 56%
-    ),
-    repeating-linear-gradient(
-      calc(var(--holo-angle, 125deg) + 90deg),
-      rgba(255,255,255,0)    0%,
-      rgba(255,255,255,0.06) 50%,
-      rgba(255,255,255,0)    100%
-    );
-  background-size: 500% 500%, 4px 4px;
-  background-position:
-    calc(var(--holo-x, 50) * 3%) calc(var(--holo-y, 50) * 3%),
-    0 0;
+  background: linear-gradient(
+    var(--holo-angle, 125deg),
+    transparent 32%,
+    color-mix(in srgb, var(--tier-glow) 38%, transparent) 50%,
+    transparent 68%
+  );
   opacity: var(--holo-opacity, 0);
-  mix-blend-mode: color-dodge;
+  mix-blend-mode: soft-light;
   transition: opacity 0.35s ease;
 }
 
@@ -5057,3 +5045,146 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 /* 商店卡片圖片區加 zoom-in cursor */
 .skin-img-wrap { cursor: zoom-in; }
+
+/* ══════════════════════════════════════════════════════
+   2026-06 視覺強化補丁
+══════════════════════════════════════════════════════ */
+
+/* ── 每日商店皮膚卡片：info 區字型放大 ── */
+.skin-info {
+  padding: 14px 16px 16px;
+}
+.skin-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  min-height: 38px;
+  margin-bottom: 10px;
+}
+
+/* 每日商店（非夜市）價格改成 pill 徽章 */
+.skin-card:not(.night-skin) .skin-cost {
+  padding: 5px 13px 5px 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  width: fit-content;
+}
+/* 有稀有度 + 非夜市：移除 pill 內部豎線（避免衝突） */
+.skin-card:not(.night-skin)[data-tier] .skin-cost {
+  padding-left: 12px;
+}
+.skin-card:not(.night-skin)[data-tier] .skin-cost::before {
+  display: none;
+}
+
+/* ── 登入頁左側 LOGO 發光強化 ── */
+.ll-logo {
+  text-shadow: 0 0 80px rgba(255, 255, 255, 0.12), 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+.ll-logo span {
+  text-shadow: 0 0 40px rgba(255, 70, 85, 0.8), 0 0 80px rgba(255, 70, 85, 0.3);
+}
+
+/* 功能列表 bullet 從短線改為圓點，加 hover 亮色 */
+.ll-features li {
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.2s;
+}
+.ll-features li:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+.ll-features li::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 1;
+  top: 50%;
+}
+
+/* ── Page title：左側紅色豎線代替底部短橫線 ── */
+.page-title {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  font-size: 21px;
+}
+.page-title::before { content: none !important; }
+.page-title::after  { display: none !important; }
+
+/* ── 收藏格線：卡片放大 ── */
+.collection-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+.col-img-wrap {
+  height: 148px;
+}
+.col-skin-img {
+  max-height: 114px;
+}
+.col-skin-name {
+  font-size: 13.5px;
+}
+
+/* ── 組合包卡片 overlay 漸層加深 ── */
+.bc-overlay {
+  padding: 44px 14px 14px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.6) 45%,
+    transparent 100%
+  );
+}
+.bc-name {
+  font-size: 0.87rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  line-height: 1.3;
+}
+.bc-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.28);
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+/* ── 玩家頭部資料：間距與字型放大 ── */
+.profile-header {
+  padding: 28px 44px;
+  gap: 44px;
+}
+.profile-playername {
+  font-size: 32px;
+}
+.currency-val {
+  font-size: 22px;
+}
+
+/* ── 對戰統計摘要：加入左側紅色漸層 ── */
+.match-stats {
+  background:
+    linear-gradient(120deg, rgba(255, 70, 85, 0.07) 0%, var(--bg-card) 55%);
+}
+.stat-val {
+  font-size: 30px;
+}
+
+/* ── Topnav 背景加深，增加陰影層次 ── */
+.topnav {
+  background: rgba(4, 5, 8, 0.95);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ── 收藏頁 spending-bar 加入漸層 ── */
+.spending-bar {
+  background: linear-gradient(
+    120deg,
+    rgba(255, 70, 85, 0.07) 0%,
+    rgba(255, 70, 85, 0.03) 50%,
+    transparent 100%
+  );
+}

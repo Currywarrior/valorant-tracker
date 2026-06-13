@@ -600,34 +600,52 @@ function ytEmbedUrl(raw) {
   return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&modestbranding=1&controls=1&rel=0`;
 }
 
-function spSetMedia(embedUrl, fallbackIcon) {
+function spSetMedia(videoUrl, fallbackIcon) {
   const inner = document.getElementById('sp-media-inner');
   if (!inner) return;
 
-  // 清掉舊 iframe，避免切換等級時疊加
+  // 清掉舊的 iframe / video
   inner.querySelectorAll('iframe').forEach(f => { f.src = ''; f.remove(); });
+  inner.querySelectorAll('video').forEach(v => { v.src = ''; v.remove(); });
 
-  if (!embedUrl) return;
+  if (!videoUrl) return;
 
-  // iframe 在背後靜默載入，圖片繼續顯示；YouTube 準備好後才淡入蓋上
-  const iframe = document.createElement('iframe');
-  iframe.className = 'sp-iframe';
-  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;';
-  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-  iframe.allowFullscreen = true;
-  iframe.src = embedUrl;
-  inner.appendChild(iframe);
+  const embedUrl = ytEmbedUrl(videoUrl);
 
-  setTimeout(() => {
-    iframe.style.transition = 'opacity 0.4s';
-    iframe.style.opacity = '1';
-    const img = inner.querySelector('.sp-fallback-img');
-    if (img) {
-      img.style.transition = 'opacity 0.4s';
-      img.style.opacity = '0';
-      setTimeout(() => img.remove(), 400);
-    }
-  }, 1400);
+  const fadeInMedia = (el, delay) => {
+    inner.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.4s';
+      el.style.opacity = '1';
+      const img = inner.querySelector('.sp-fallback-img');
+      if (img) {
+        img.style.transition = 'opacity 0.4s';
+        img.style.opacity = '0';
+        setTimeout(() => img.remove(), 400);
+      }
+    }, delay);
+  };
+
+  if (embedUrl) {
+    // YouTube embed
+    const iframe = document.createElement('iframe');
+    iframe.className = 'sp-iframe';
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.allowFullscreen = true;
+    iframe.src = embedUrl;
+    fadeInMedia(iframe, 1400);
+  } else {
+    // Riot CDN 直接 MP4
+    const video = document.createElement('video');
+    video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;';
+    video.autoplay = true;
+    video.loop = true;
+    video.controls = true;
+    video.src = videoUrl;
+    video.play().catch(() => {});
+    fadeInMedia(video, 300);
+  }
 }
 
 async function openSkinPreview(skin) {
@@ -691,20 +709,28 @@ async function openSkinPreview(skin) {
     const rect = mediaArea.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    const tiltX = (0.5 - y) * 18;
-    const tiltY = (x - 0.5) * 18;
+    const tiltX = (0.5 - y) * 22;
+    const tiltY = (x - 0.5) * 22;
     img.style.animation = 'none';
-    img.style.transform = `perspective(620px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.04) translateZ(16px)`;
-    img.style.transition = 'transform 0.06s linear';
+    img.style.transform = `perspective(560px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.06) translateZ(24px)`;
+    img.style.transition = 'transform 0.05s linear';
+    // 方向性陰影：光源在游標，陰影往反方向偏，製造浮起的體積感
+    const shX = (0.5 - x) * 30;
+    const shY = (0.5 - y) * 30;
+    img.style.filter = `drop-shadow(${shX}px ${shY}px 24px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(255,255,255,0.07))`;
+    // 跟隨游標的亮點高光 + 隨角度掃動的斜向 sheen
     glareEl.style.opacity = '1';
-    glareEl.style.background = `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.08) 0%, transparent 60%)`;
+    glareEl.style.background =
+      `radial-gradient(circle at ${x * 100}% ${y * 100}%, rgba(255,255,255,0.14) 0%, transparent 55%),`
+      + `linear-gradient(${(x - 0.5) * 60 + 110}deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%)`;
   });
 
   mediaArea.addEventListener('mouseleave', () => {
     const img = ol.querySelector('.sp-fallback-img');
     if (!img) return;
-    img.style.transition = 'transform 0.5s ease';
+    img.style.transition = 'transform 0.5s ease, filter 0.5s ease';
     img.style.transform = '';
+    img.style.filter = '';
     setTimeout(() => { if (img) { img.style.animation = ''; img.style.transition = ''; } }, 500);
     glareEl.style.opacity = '0';
   });
@@ -732,7 +758,7 @@ async function openSkinPreview(skin) {
   }
 
   // 如果 store 已回傳影片 URL，立刻播
-  if (skin.streamedVideo) spSetMedia(ytEmbedUrl(skin.streamedVideo), icon);
+  if (skin.streamedVideo) spSetMedia(skin.streamedVideo, icon);
 
   // 用 skinUuid 抓完整皮膚資料（含所有等級影片）
   const skinUuid = skin.skinUuid;
@@ -774,7 +800,7 @@ async function openSkinPreview(skin) {
               }
             }
           } else {
-            spSetMedia(ytEmbedUrl(btn.dataset.video), icon);
+            spSetMedia(btn.dataset.video, icon);
           }
         });
       });
@@ -787,7 +813,7 @@ async function openSkinPreview(skin) {
     if (!skin.streamedVideo) {
       const currentLevelVideo = levels.find(l => l.uuid?.toLowerCase() === skin.uuid?.toLowerCase())?.streamedVideo;
       const fallbackVideo = levels.find(l => l.streamedVideo)?.streamedVideo;
-      spSetMedia(ytEmbedUrl(currentLevelVideo || fallbackVideo), icon);
+      spSetMedia(currentLevelVideo || fallbackVideo, icon);
     }
   } catch {
     // 靜默失敗，圖片 fallback 已顯示
@@ -1555,7 +1581,7 @@ function openNewspaper() {
 // 皮膚卡片：3D 傾斜 + cursor spotlight（隨滑鼠位置）
 function add3DTilt(card) {
   const tier = card.dataset.tier || '';
-  const holoStrength = { select: 0.25, deluxe: 0.38, premium: 0.54, ultra: 0.75, exclusive: 0.95 }[tier] || 0;
+  const holoStrength = { select: 0.12, deluxe: 0.18, premium: 0.26, ultra: 0.34, exclusive: 0.44 }[tier] || 0;
 
   card.addEventListener('mousemove', (e) => {
     const r = card.getBoundingClientRect();
@@ -1569,8 +1595,6 @@ function add3DTilt(card) {
     card.style.setProperty('--spot-y', `${y}px`);
     card.style.setProperty('--spot-opacity', '1');
     if (holoStrength > 0) {
-      card.style.setProperty('--holo-x', ((nx + 0.5) * 100).toFixed(1));
-      card.style.setProperty('--holo-y', ((ny + 0.5) * 100).toFixed(1));
       card.style.setProperty('--holo-angle', `${(nx * 60 + 125).toFixed(1)}deg`);
       card.style.setProperty('--holo-opacity', holoStrength);
     }
