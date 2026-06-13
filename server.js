@@ -12,7 +12,26 @@ const app = express();
 app.set('trust proxy', 1); // 部署在 Nginx / Railway / Render 後面時正確取得 IP
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 資料持久化目錄：設了 DATA_DIR（在 Railway 掛載持久磁碟後）才啟用持久化；
+// 未設定時 DATA_DIR 退回專案目錄，一切行為與原本完全相同。
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+
+// 只有掛了持久磁碟（有 DATA_DIR）時，才把 session 改存成檔案，讓重啟後不用重登。
+// 未設定時 sessionStore 為 undefined，express-session 自動沿用原本的 MemoryStore。
+let sessionStore;
+if (process.env.DATA_DIR) {
+  const FileStore = require('session-file-store')(expressSession);
+  sessionStore = new FileStore({
+    path: path.join(DATA_DIR, 'sessions'),
+    ttl: 2 * 60 * 60, // 秒，對齊 cookie 的 2 小時有效期
+    retries: 1,
+    logFn: () => {},  // 靜音，避免大量讀寫日誌洗版
+  });
+}
+
 app.use(expressSession({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
   resave: false,
   saveUninitialized: false,
@@ -35,7 +54,7 @@ const loginLimiter = rateLimit({
 const HENRIK_API_KEY = process.env.HENRIK_API_KEY || '';
 const VP_CURRENCY = '85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741';
 const RP_CURRENCY = 'e59aa87c-4cbf-517a-5983-6e81511be9b7';
-const STORE_HISTORY_PATH = path.join(__dirname, 'store-history.json');
+const STORE_HISTORY_PATH = path.join(DATA_DIR, 'store-history.json');
 const SKIN_LEVEL_TYPE        = 'e7c63390-eda7-46e0-bb7a-a6abdacd2433';
 const SKIN_LEVEL_TYPE_LEGACY = 'bcef87d6-209b-46ab-8428-492203e274d8';
 const SKIN_CHROMA_TYPE       = '3ad1b2b2-acdb-4524-852f-954a76ddae0a';
