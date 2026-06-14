@@ -702,6 +702,7 @@ function spSetMedia(videoUrl, fallbackIcon) {
     video.loop = true;
     video.controls = true;
     video.muted = spMuted;
+    video.volume = 0.5;
     video.src = videoUrl;
     video.play().catch(() => {
       // 非靜音自動播放被瀏覽器擋下時，降級為靜音重播以保住畫面（使用者可再用聲音鈕開啟）
