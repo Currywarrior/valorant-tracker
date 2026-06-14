@@ -373,9 +373,11 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 .login-btn {
+  position: relative;
+  overflow: hidden;
   width: 100%;
-  padding: 13px;
-  background: var(--accent);
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
   color: #fff;
   border: none;
   font-size: 12px;
@@ -383,17 +385,28 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   letter-spacing: 0.18em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s, filter 0.2s;
   margin-top: 6px;
   font-family: 'Inter', inherit;
-  border-radius: 2px;
+  border-radius: 0;
+  /* 電競切角：右下斜切 */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
 }
-
+/* hover 紅白光帶掃過 */
+.login-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.4) 50%, transparent 65%);
+  transform: translateX(-130%) skewX(-15deg);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
 .login-btn:hover {
-  background: var(--accent-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255, 70, 85, 0.4);
+  transform: translateY(-2px);
+  filter: brightness(1.08) drop-shadow(0 8px 18px rgba(255, 70, 85, 0.5));
 }
+.login-btn:hover::after { transform: translateX(130%) skewX(-15deg); }
 .login-btn:active { transform: translateY(0); }
 .login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
@@ -584,18 +597,24 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .id-input::placeholder { color: var(--text-dim); }
 
 .logout-btn {
-  padding: 8px 16px;
-  background: none;
+  padding: 8px 18px;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);   /* 左側紅色戰術裝飾條 */
   color: var(--text-dim);
   font-size: 13px;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: all 0.15s;
-  border-radius: 3px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  border-radius: 0;                        /* 銳利化 */
   font-family: inherit;
 }
 
-.logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+.logout-btn:hover {
+  border-color: var(--accent);
+  color: #fff;
+  background: rgba(255, 70, 85, 0.12);
+}
 
 /* ─── 玩家資料頭部 ─── */
 .profile-header {
