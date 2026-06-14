@@ -938,6 +938,26 @@ async function openSkinPreview(skin) {
 
 // ─── 商店 ───
 
+// 翻牌揭曉音效（Web Audio 合成，不需音檔）；命中心願清單時音調更亮
+let _revealAudioCtx = null;
+function playRevealSound(hit) {
+  try {
+    _revealAudioCtx = _revealAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _revealAudioCtx;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = hit ? 'triangle' : 'sine';
+    const f = hit ? 740 : 420;
+    o.frequency.setValueAtTime(f, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(f * 1.6, ctx.currentTime + 0.1);
+    g.gain.setValueAtTime(hit ? 0.10 : 0.05, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+    o.start();
+    o.stop(ctx.currentTime + 0.3);
+  } catch {}
+}
+
 async function loadStore() {
   $('storeGrid').innerHTML = '';
   for (let i = 0; i < 4; i++) {
@@ -965,13 +985,25 @@ async function loadStore() {
     return;
   }
 
-  // 渲染 4 個每日皮膚（交錯 fadeInUp）
+  // 渲染 4 個每日皮膚，依序翻牌揭曉
   $('storeGrid').innerHTML = '';
-  (data.dailyOffers || []).forEach((skin, i) => {
+  const wlSet = new Set(getWishlist());
+  const dailyCards = (data.dailyOffers || []).map((skin) => {
     const card = buildSkinCard(skin, false);
-    card.style.animationDelay = `${i * 80}ms`;
     $('storeGrid').appendChild(card);
+    return { card, hit: !!(skin.uuid && wlSet.has(skin.uuid)) };
   });
+  if (REDUCE_MOTION) {
+    dailyCards.forEach(({ card }) => card.classList.add('revealed'));
+  } else {
+    dailyCards.forEach(({ card, hit }, i) => {
+      setTimeout(() => {
+        card.classList.add('revealed');
+        if (hit) card.classList.add('wishlist-reveal');
+        playRevealSound(hit);
+      }, 300 + i * 420);
+    });
+  }
 
   // 夜市（開放期間才有資料）
   if (data.nightMarket && data.nightMarket.length > 0) {
@@ -1048,7 +1080,7 @@ function buildSkinCard(skin, isNight) {
   const inWishlist = skin.uuid && wishlist.includes(skin.uuid);
   const isOwned = skin.uuid && state.ownedSkins.has(skin.uuid);
 
-  card.className = `skin-card${isNight ? ' night-skin' : ''}${inWishlist ? ' in-wishlist' : ''}${isOwned ? ' is-owned' : ''}`;
+  card.className = `skin-card${isNight ? ' night-skin' : ' revealing'}${inWishlist ? ' in-wishlist' : ''}${isOwned ? ' is-owned' : ''}`;
   card.dataset.uuid = skin.uuid || '';
   if (skin.cost) card.dataset.tier = costToTier(skin.cost);
 
@@ -1063,6 +1095,7 @@ function buildSkinCard(skin, isNight) {
   const histHtml = histText ? `<div class="skin-history">${histText}</div>` : '';
 
   card.innerHTML = `
+    ${!isNight ? '<div class="card-cover"><span class="cover-mark">//</span></div>' : ''}
     <div class="skin-img-wrap">
       ${skin.icon
         ? `<img src="${skin.icon}" alt="${skin.name}" class="skin-img" loading="lazy">`
@@ -1199,6 +1232,7 @@ function renderMatchStats(matches, playerName, playerTag) {
   const agentStats = {};  // agent -> { games, wins, icon }
   const mapStats = {};    // map   -> { games, wins }
   const recentResults = []; // 最多 15 場
+  const kdSeries = [];      // 最近場次的 K/D，用於走勢折線
 
   matches.forEach(match => {
     const allPlayers = match.players?.all_players || [];
@@ -1246,6 +1280,7 @@ function renderMatchStats(matches, playerName, playerTag) {
         result: isDraw ? 'draw' : (won ? 'win' : 'loss'),
         agentIcon: me.assets?.agent?.small || ''
       });
+      kdSeries.push(deaths > 0 ? kills / deaths : kills);
     }
   });
 
@@ -1292,10 +1327,42 @@ function renderMatchStats(matches, playerName, playerTag) {
 
   $('matchStats').classList.remove('hidden');
 
-  // 角色使用分布 + 地圖勝率橫條圖
+  // K/D 走勢折線 + 角色使用分布 + 地圖勝率橫條圖
+  renderKdaTrend(kdSeries);
   renderAgentDist(agentStats);
   renderMapWinrate(mapStats);
   $('matchCharts').classList.remove('hidden');
+}
+
+// 最近場次 K/D 走勢折線（純 SVG，零依賴）。series 為 matches 順序（新→舊）
+function renderKdaTrend(series) {
+  const el = $('kdaTrend');
+  if (!el) return;
+  const data = [...series].reverse(); // 反轉成 舊→新（左→右）
+  if (data.length < 2) {
+    el.innerHTML = '<div class="kda-trend-empty">場次不足，無法繪製走勢</div>';
+    return;
+  }
+  const W = 600, H = 140, padX = 14, padY = 20;
+  const n = data.length;
+  const maxKD = Math.max(2, ...data);
+  const x = i => padX + (i * (W - 2 * padX)) / (n - 1);
+  const y = v => H - padY - (Math.min(v, maxKD) / maxKD) * (H - 2 * padY);
+  const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+  const linePath = 'M' + pts.join(' L');
+  const areaPath = `M${x(0).toFixed(1)},${(H - padY).toFixed(1)} L` + pts.join(' L') + ` L${x(n - 1).toFixed(1)},${(H - padY).toFixed(1)} Z`;
+  const baseY = y(1).toFixed(1);
+  const dots = data.map((v, i) =>
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="${v >= 1 ? 'var(--win)' : 'var(--accent)'}"><title>K/D ${v.toFixed(2)}</title></circle>`
+  ).join('');
+  el.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="kda-svg">
+      <line x1="${padX}" y1="${baseY}" x2="${W - padX}" y2="${baseY}" class="kda-base"/>
+      <path d="${areaPath}" class="kda-area"/>
+      <path d="${linePath}" class="kda-line"/>
+      ${dots}
+    </svg>
+    <div class="kda-axis"><span>較舊</span><span>虛線 = K/D 1.0</span><span>最新</span></div>`;
 }
 
 // 角色使用分布橫條（依場次排序，最多 6 個；bar 長度 = 相對最高場次）

@@ -950,6 +950,45 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   will-change: transform;
 }
 
+/* ── 每日商店翻牌揭曉 ── */
+.skin-card.revealing { perspective: 800px; animation: none; }
+.card-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(135deg, rgba(255, 70, 85, 0.12), transparent 60%),
+    linear-gradient(160deg, #1a2032, #0b0e16);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1), opacity 0.6s;
+}
+.skin-card.revealed .card-cover {
+  transform: rotateY(-115deg);
+  opacity: 0;
+  pointer-events: none;
+}
+.cover-mark {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  opacity: 0.45;
+  text-shadow: 0 0 24px rgba(255, 70, 85, 0.5);
+}
+.skin-card.wishlist-reveal { animation: wishHit 0.9s ease; }
+@keyframes wishHit {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 70, 85, 0); }
+  35%  { box-shadow: 0 0 34px 4px rgba(255, 70, 85, 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 70, 85, 0); }
+}
+
 .skin-card:hover {
   border-color: rgba(255, 70, 85, 0.6);
   box-shadow:
@@ -1353,6 +1392,29 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   white-space: nowrap;
 }
 @keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* K/D 走勢折線 */
+.chart-panel-wide { grid-column: 1 / -1; }
+.kda-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.kda-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.kda-area { fill: rgba(255, 70, 85, 0.10); stroke: none; }
+.kda-base { stroke: rgba(255, 255, 255, 0.22); stroke-width: 1; stroke-dasharray: 4 4; }
+.kda-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  margin-top: 6px;
+}
+.kda-trend-empty { font-size: 12px; color: var(--text-dim); padding: 10px 0; }
+
 @media (max-width: 700px) {
   .match-charts { grid-template-columns: 1fr; }
 }
