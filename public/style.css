@@ -759,7 +759,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 /* ─── 頁面共用 ─── */
 .tab-page {
-  max-width: 1120px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 28px 16px 48px;
 }
@@ -903,6 +903,11 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 .skin-card:not(.night-skin) .skin-img {
   max-height: 135px;
+}
+/* 大螢幕（寬視窗）：每日商店卡片圖片回大，避免在寬螢幕顯得太小、空白太多 */
+@media (min-width: 1440px) {
+  .skin-card:not(.night-skin) .skin-img-wrap { height: 210px; }
+  .skin-card:not(.night-skin) .skin-img { max-height: 180px; }
 }
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
