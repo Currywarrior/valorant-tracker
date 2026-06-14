@@ -210,6 +210,14 @@
             <div class="stat-val" id="statAvgKDA">--</div>
             <div class="stat-label">平均 K/D</div>
           </div>
+          <div class="stat-item">
+            <div class="stat-val" id="statHS">--%</div>
+            <div class="stat-label">爆頭率</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-val" id="statACS">--</div>
+            <div class="stat-label">平均 ACS</div>
+          </div>
           <div class="stat-item stat-agent">
             <img id="statTopAgentIcon" class="stat-agent-icon" src="" alt="" onerror="this.style.display='none'">
             <div>
@@ -222,6 +230,16 @@
         <div class="winstreak-wrap">
           <div class="winstreak-label">最近對戰</div>
           <div id="winstreakGrid" class="winstreak-grid"></div>
+        </div>
+      </div>
+      <div id="matchCharts" class="match-charts hidden">
+        <div class="chart-panel">
+          <div class="chart-title">角色使用分布</div>
+          <div id="agentDist" class="bar-list"></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">地圖勝率</div>
+          <div id="mapWinrate" class="bar-list"></div>
         </div>
       </div>
       <div id="matchesList" class="matches-list">

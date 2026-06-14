@@ -79,6 +79,28 @@ function toggleWishlist(uuid) {
   return list.includes(uuid); // 回傳「現在是否在清單內」
 }
 
+// ─── Toast 通知（右上角滑入，2.6 秒後自動消失） ───
+function showToast(text, type = 'info') {
+  let wrap = document.getElementById('toastWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'toastWrap';
+    wrap.className = 'toast-wrap';
+    document.body.appendChild(wrap);
+  }
+  const icon = type === 'add' ? '&#x2665;' : type === 'remove' ? '&#x2661;' : '&#x2022;';
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text">${text}</span>`;
+  wrap.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('toast-in'));
+  setTimeout(() => {
+    toast.classList.remove('toast-in');
+    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+  }, 2600);
+}
+window.showToast = showToast;
+
 // ─── 初始化 ───
 
 async function init() {
@@ -275,6 +297,7 @@ async function handleLogout() {
   $('collectionGrid').innerHTML = '';
   $('collectionCount').textContent = '';
   $('matchStats').classList.add('hidden');
+  $('matchCharts').classList.add('hidden');
   state.collectionLoaded = false;
   document.querySelector('.night-market-section')?.remove();
   document.querySelector('.wishlist-banner')?.remove();
@@ -590,7 +613,43 @@ const LEVEL_TYPE_LABELS = {
   'EEquippableSkinLevelItem::SoundEffects':     '音效升級',
   'EEquippableSkinLevelItem::TopFrag':          '頂尖射手',
   'EEquippableSkinLevelItem::HeartbeatAndMapSensor': '心跳感應',
+  'EEquippableSkinLevelItem::Transformation':   '變形動畫',
+  'EEquippableSkinLevelItem::Voiceover':        '專屬語音',
+  'EEquippableSkinLevelItem::Randomizer':       '隨機外觀',
+  'EEquippableSkinLevelItem::KillEffect':       '擊殺特效',
+  'EEquippableSkinLevelItem::KillCounter':      '擊殺計數',
+  'EEquippableSkinLevelItem::SongShuffle':      '樂曲切換',
+  'EEquippableSkinLevelItem::FishAnimation':    '魚兒動畫',
+  'EEquippableSkinLevelItem::AttackerDefenderSwap': '攻守外觀',
 };
+
+// 每個等級「實際解鎖了什麼」的說明，補足靜音影片看不出的差異
+const LEVEL_TYPE_DESC = {
+  'EEquippableSkinLevelItem::VFX':              '此等級新增專屬視覺特效（彈道、命中、開火光效）',
+  'EEquippableSkinLevelItem::Animation':        '此等級新增專屬動畫（裝備、檢視等動作）',
+  'EEquippableSkinLevelItem::Finisher':         '擊殺敵人時觸發的專屬終結動畫',
+  'EEquippableSkinLevelItem::KillBanner':       '擊殺時顯示的專屬擊殺橫幅',
+  'EEquippableSkinLevelItem::InspectAndKill':   '檢視與擊殺時的專屬動畫',
+  'EEquippableSkinLevelItem::SoundEffects':     '此等級新增專屬開火／換彈音效，畫面與基礎外觀相同',
+  'EEquippableSkinLevelItem::TopFrag':          '當局頂尖表現時觸發的專屬效果',
+  'EEquippableSkinLevelItem::HeartbeatAndMapSensor': '新增心跳感應／地圖偵測效果',
+  'EEquippableSkinLevelItem::Transformation':   '此等級可變形切換不同外觀型態',
+  'EEquippableSkinLevelItem::Voiceover':        '此等級新增專屬語音',
+  'EEquippableSkinLevelItem::Randomizer':       '此等級可隨機切換外觀',
+  'EEquippableSkinLevelItem::KillEffect':       '擊殺敵人時觸發的專屬視覺特效',
+  'EEquippableSkinLevelItem::KillCounter':      '此等級新增槍身擊殺數計數器',
+  'EEquippableSkinLevelItem::SongShuffle':      '此等級可切換不同背景樂曲',
+  'EEquippableSkinLevelItem::FishAnimation':    '此等級新增專屬魚類動畫效果',
+  'EEquippableSkinLevelItem::AttackerDefenderSwap': '進攻／防守方時顯示不同外觀',
+};
+
+function levelDesc(levelItem) {
+  if (!levelItem) return '皮膚的基礎外觀';
+  return LEVEL_TYPE_DESC[levelItem] || '此等級的升級內容';
+}
+
+// 影片靜音狀態（預設開聲音；若被瀏覽器自動播放政策擋下，spSetMedia 會降級靜音重播以保住畫面）
+let spMuted = false;
 
 function ytEmbedUrl(raw) {
   if (!raw) return null;
@@ -642,8 +701,12 @@ function spSetMedia(videoUrl, fallbackIcon) {
     video.autoplay = true;
     video.loop = true;
     video.controls = true;
+    video.muted = spMuted;
     video.src = videoUrl;
-    video.play().catch(() => {});
+    video.play().catch(() => {
+      // 非靜音自動播放被瀏覽器擋下時，降級為靜音重播以保住畫面（使用者可再用聲音鈕開啟）
+      if (!video.muted) { video.muted = true; video.play().catch(() => {}); }
+    });
     fadeInMedia(video, 300);
   }
 }
@@ -686,6 +749,10 @@ async function openSkinPreview(skin) {
           <button class="sp-close" id="sp-close">&#x2715;</button>
         </div>
         <div class="sp-levels" id="sp-levels"></div>
+        <div class="sp-level-meta">
+          <div class="sp-level-desc" id="sp-level-desc"></div>
+          <button class="sp-mute" id="sp-mute" type="button">聲音：關</button>
+        </div>
         <div class="sp-footer">
           ${wlUuid ? `<button class="sp-wishlist-btn${inWishlist ? ' active' : ''}" id="sp-wl-btn" data-uuid="${wlUuid}">${inWishlist ? '&#x2665; 已加入心願清單' : '&#x2661; 加入心願清單'}</button>` : '<div></div>'}
           ${cost ? `<div class="sp-cost"><img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png" class="sp-vp-icon" alt="VP">${cost.toLocaleString()} VP</div>` : ''}
@@ -764,15 +831,31 @@ async function openSkinPreview(skin) {
       const nowIn = toggleWishlist(wlBtn.dataset.uuid);
       wlBtn.classList.toggle('active', nowIn);
       wlBtn.innerHTML = nowIn ? '&#x2665; 已加入心願清單' : '&#x2661; 加入心願清單';
+      showToast(nowIn ? '已加入心願清單' : '已移除心願清單', nowIn ? 'add' : 'remove');
     });
   }
 
-  // 如果 store 已回傳影片 URL，立刻播
-  if (skin.streamedVideo) spSetMedia(skin.streamedVideo, icon);
+  const muteBtn = document.getElementById('sp-mute');
+  if (muteBtn) {
+    const syncMute = () => {
+      muteBtn.textContent = spMuted ? '聲音：關' : '聲音：開';
+      muteBtn.classList.toggle('on', !spMuted);
+    };
+    syncMute();
+    muteBtn.addEventListener('click', () => {
+      spMuted = !spMuted;
+      syncMute();
+      const v = document.querySelector('#sp-media-inner video');
+      if (v) { v.muted = spMuted; if (!spMuted) v.play().catch(() => {}); }
+    });
+  }
 
-  // 用 skinUuid 抓完整皮膚資料（含所有等級影片）
+  // 用 skinUuid 抓完整皮膚資料（含所有等級影片）；缺 skinUuid 時用 store 傳入的影片兜底
   const skinUuid = skin.skinUuid;
-  if (!skinUuid) return;
+  if (!skinUuid) {
+    if (skin.streamedVideo) spSetMedia(skin.streamedVideo, icon);
+    return;
+  }
 
   try {
     const r = await fetch(`https://valorant-api.com/v1/weapons/skins/${skinUuid}?language=zh-TW`);
@@ -784,11 +867,27 @@ async function openSkinPreview(skin) {
     const levelsEl = document.getElementById('sp-levels');
     if (!levelsEl) return;
 
+    // 預先算每個等級的標籤與說明，處理同類型重複（例如兩個視覺特效）
+    const typeTotal = {};
+    levels.forEach(l => { const t = l.levelItem || 'BASE'; typeTotal[t] = (typeTotal[t] || 0) + 1; });
+    const typeSeen = {};
+    const levelMeta = levels.map((l, i) => {
+      const t = l.levelItem || 'BASE';
+      typeSeen[t] = (typeSeen[t] || 0) + 1;
+      const base = l.levelItem ? (LEVEL_TYPE_LABELS[l.levelItem] || `等級 ${i + 1}`) : '基礎外觀';
+      const dup = typeTotal[t] > 1;                       // 同類型出現多次才加序號
+      const label = dup ? `${base} ${typeSeen[t]}` : base;
+      let desc = `第 ${i + 1} / ${levels.length} 級 · ${levelDesc(l.levelItem)}`;
+      if (dup && typeSeen[t] > 1) desc += '（在前一級基礎上進一步強化，等級越高效果越完整）';
+      return { label, desc };
+    });
+    const descEl = document.getElementById('sp-level-desc');
+    const setDesc = (i) => { if (descEl) descEl.textContent = levelMeta[i]?.desc || ''; };
+
     if (levels.length > 1) {
       levelsEl.innerHTML = levels.map((l, i) => {
-        const label = (l.levelItem ? (LEVEL_TYPE_LABELS[l.levelItem] || `等級 ${i + 1}`) : '基礎外觀');
         const hasVideo = !!l.streamedVideo;
-        return `<button class="sp-level-btn${!hasVideo ? ' no-video' : ''}" data-idx="${i}" data-video="${l.streamedVideo || ''}">${label}</button>`;
+        return `<button class="sp-level-btn${!hasVideo ? ' no-video' : ''}" data-idx="${i}" data-video="${l.streamedVideo || ''}">${levelMeta[i].label}</button>`;
       }).join('');
 
       const btnEls = levelsEl.querySelectorAll('.sp-level-btn');
@@ -796,6 +895,7 @@ async function openSkinPreview(skin) {
         btn.addEventListener('click', () => {
           btnEls.forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
+          setDesc(+btn.dataset.idx);
           if (btn.classList.contains('no-video')) {
             // 沒影片：清掉舊 iframe，恢復靜態圖
             const inner = document.getElementById('sp-media-inner');
@@ -815,15 +915,21 @@ async function openSkinPreview(skin) {
         });
       });
 
-      const firstWithVideo = levelsEl.querySelector('.sp-level-btn:not(.no-video)');
-      if (firstWithVideo) firstWithVideo.classList.add('active');
-    }
-
-    // 如果還沒播影片，從等級清單中找第一個有影片的等級
-    if (!skin.streamedVideo) {
-      const currentLevelVideo = levels.find(l => l.uuid?.toLowerCase() === skin.uuid?.toLowerCase())?.streamedVideo;
-      const fallbackVideo = levels.find(l => l.streamedVideo)?.streamedVideo;
-      spSetMedia(currentLevelVideo || fallbackVideo, icon);
+      // 預設定位到「擊殺動畫(Finisher)」終結特效；沒有則退而選最高等級的影片
+      const finisherIdx = levels.findIndex(l => l.levelItem === 'EEquippableSkinLevelItem::Finisher' && l.streamedVideo);
+      let lastVideoIdx = -1;
+      for (let i = levels.length - 1; i >= 0; i--) { if (levels[i].streamedVideo) { lastVideoIdx = i; break; } }
+      const initIdx = finisherIdx !== -1 ? finisherIdx : lastVideoIdx;
+      const activeBtn = initIdx !== -1 ? btnEls[initIdx] : btnEls[0];
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        setDesc(+activeBtn.dataset.idx);
+        if (!activeBtn.classList.contains('no-video')) spSetMedia(activeBtn.dataset.video, icon);
+      }
+    } else {
+      // 單一等級：顯示說明並播放該等級影片
+      setDesc(0);
+      if (levels[0]?.streamedVideo) spSetMedia(levels[0].streamedVideo, icon);
     }
   } catch {
     // 靜默失敗，圖片 fallback 已顯示
@@ -965,11 +1071,13 @@ function buildSkinCard(skin, isNight) {
     </div>
     <div class="skin-info">
       ${histHtml}
-      <p class="skin-name">${skin.name || 'Unknown Skin'}</p>
-      <div class="skin-cost">
-        <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png"
-             class="vp-icon" alt="VP" onerror="this.style.display='none'">
-        ${costHtml}
+      <div class="skin-info-row">
+        <p class="skin-name">${skin.name || 'Unknown Skin'}</p>
+        <div class="skin-cost">
+          <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png"
+               class="vp-icon" alt="VP" onerror="this.style.display='none'">
+          ${costHtml}
+        </div>
       </div>
     </div>
   `;
@@ -984,6 +1092,7 @@ function buildSkinCard(skin, isNight) {
       wishBtn.classList.toggle('active', nowIn);
       wishBtn.innerHTML = nowIn ? '&#x2665;' : '&#x2661;';
       card.classList.toggle('in-wishlist', nowIn);
+      showToast(nowIn ? `已加入心願清單：${skin.name}` : `已移除：${skin.name}`, nowIn ? 'add' : 'remove');
       // 彈跳動畫
       wishBtn.classList.remove('pop');
       void wishBtn.offsetWidth;
@@ -1041,6 +1150,7 @@ async function loadMatches() {
   }
 
   $('matchStats').classList.add('hidden');
+  $('matchCharts').classList.add('hidden');
   $('matchesList').innerHTML = '<div class="state-msg">對戰紀錄載入中...</div>';
 
   const data = await apiFetch(`/api/matches?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`);
@@ -1084,7 +1194,10 @@ function renderMatchStats(matches, playerName, playerTag) {
   let totalDeaths = 0;
   let totalAssists = 0;
   let validCount = 0;
-  const agentCount = {};
+  let totalScore = 0, totalRounds = 0;
+  let totalHead = 0, totalBody = 0, totalLeg = 0;
+  const agentStats = {};  // agent -> { games, wins, icon }
+  const mapStats = {};    // map   -> { games, wins }
   const recentResults = []; // 最多 15 場
 
   matches.forEach(match => {
@@ -1103,15 +1216,29 @@ function renderMatchStats(matches, playerName, playerTag) {
     const won = teams[myTeam]?.has_won;
 
     if (won) wins++;
-    const { kills = 0, deaths = 0, assists = 0 } = me.stats || {};
+    const { kills = 0, deaths = 0, assists = 0, score = 0,
+            headshots = 0, bodyshots = 0, legshots = 0 } = me.stats || {};
     totalKills += kills;
     totalDeaths += deaths;
     totalAssists += assists;
+    totalScore += score;
+    totalHead += headshots;
+    totalBody += bodyshots;
+    totalLeg += legshots;
+    totalRounds += (teams.blue?.rounds_won || 0) + (teams.red?.rounds_won || 0);
     validCount++;
 
-    // 統計最常用 agent
+    // 角色使用分布（場次 + 勝場 + icon，順便用來找最常用 agent）
     const agentName = me.character || 'Unknown';
-    agentCount[agentName] = (agentCount[agentName] || 0) + 1;
+    const ag = agentStats[agentName] || (agentStats[agentName] = { games: 0, wins: 0, icon: me.assets?.agent?.small || '' });
+    ag.games++;
+    if (won) ag.wins++;
+
+    // 地圖勝率
+    const mapName = match.metadata?.map || 'Unknown';
+    const mp = mapStats[mapName] || (mapStats[mapName] = { games: 0, wins: 0 });
+    mp.games++;
+    if (won) mp.wins++;
 
     // 勝敗走勢（最多 15 場，最新在陣列後面，渲染時最新在右）
     if (recentResults.length < 15) {
@@ -1134,30 +1261,22 @@ function renderMatchStats(matches, playerName, playerTag) {
     : totalKills;
   animateScramble($('statAvgKDA'), avgKD.toFixed(2));
 
-  // 最常用 agent
-  const topAgent = Object.entries(agentCount).sort((a, b) => b[1] - a[1])[0];
+  // 爆頭率（亂碼效果）
+  const totalShots = totalHead + totalBody + totalLeg;
+  const hsPct = totalShots > 0 ? Math.round((totalHead / totalShots) * 100) : 0;
+  animateScramble($('statHS'), `${hsPct}%`);
+
+  // 平均 ACS = 戰鬥分總和 ÷ 回合總數（亂碼效果）
+  const acs = totalRounds > 0 ? Math.round(totalScore / totalRounds) : 0;
+  animateScramble($('statACS'), `${acs}`);
+
+  // 最常用 agent（icon 已在統計迴圈存好，免去重複搜尋）
+  const topAgent = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games)[0];
   if (topAgent) {
     $('statTopAgent').textContent = topAgent[0];
-    // 從已渲染的卡片中找 agent icon（或直接從 matches 裡找）
-    const topAgentMatch = matches.find(match => {
-      const allPlayers = match.players?.all_players || [];
-      const me = allPlayers.find(
-        p => p.name?.toLowerCase() === playerName.toLowerCase()
-          && p.tag?.toLowerCase() === playerTag.toLowerCase()
-      );
-      return me?.character === topAgent[0];
-    });
-    if (topAgentMatch) {
-      const allPlayers = topAgentMatch.players?.all_players || [];
-      const me = allPlayers.find(
-        p => p.name?.toLowerCase() === playerName.toLowerCase()
-          && p.tag?.toLowerCase() === playerTag.toLowerCase()
-      );
-      const icon = me?.assets?.agent?.small || '';
-      if (icon) {
-        $('statTopAgentIcon').src = icon;
-        $('statTopAgentIcon').style.display = '';
-      }
+    if (topAgent[1].icon) {
+      $('statTopAgentIcon').src = topAgent[1].icon;
+      $('statTopAgentIcon').style.display = '';
     }
   }
 
@@ -1172,6 +1291,52 @@ function renderMatchStats(matches, playerName, playerTag) {
   });
 
   $('matchStats').classList.remove('hidden');
+
+  // 角色使用分布 + 地圖勝率橫條圖
+  renderAgentDist(agentStats);
+  renderMapWinrate(mapStats);
+  $('matchCharts').classList.remove('hidden');
+}
+
+// 角色使用分布橫條（依場次排序，最多 6 個；bar 長度 = 相對最高場次）
+function renderAgentDist(agentStats) {
+  const el = $('agentDist');
+  el.innerHTML = '';
+  const arr = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games).slice(0, 6);
+  const max = arr[0]?.[1].games || 1;
+  arr.forEach(([name, s], i) => {
+    const wr = Math.round((s.wins / s.games) * 100);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.style.animationDelay = `${i * 50}ms`;
+    row.innerHTML = `
+      <div class="bar-head">
+        ${s.icon ? `<img class="bar-icon" src="${s.icon}" alt="">` : ''}
+        <span class="bar-name">${name}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(s.games / max) * 100}%"></div></div>
+      <div class="bar-meta">${s.games} 場 · 勝率 ${wr}%</div>`;
+    el.appendChild(row);
+  });
+}
+
+// 地圖勝率橫條（依場次排序，最多 7 個；bar 長度 = 勝率，顏色 紅→綠 隨勝率）
+function renderMapWinrate(mapStats) {
+  const el = $('mapWinrate');
+  el.innerHTML = '';
+  const arr = Object.entries(mapStats).sort((a, b) => b[1].games - a[1].games).slice(0, 7);
+  arr.forEach(([name, s], i) => {
+    const wr = Math.round((s.wins / s.games) * 100);
+    const hue = Math.round((wr / 100) * 130); // 0% 紅 → 100% 綠
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.style.animationDelay = `${i * 50}ms`;
+    row.innerHTML = `
+      <div class="bar-head"><span class="bar-name">${name}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${wr}%;background:hsl(${hue},65%,48%)"></div></div>
+      <div class="bar-meta">${s.wins}勝 ${s.games - s.wins}敗 · ${wr}%</div>`;
+    el.appendChild(row);
+  });
 }
 
 function buildMatchCard(match, playerName, playerTag) {

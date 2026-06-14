@@ -497,10 +497,10 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
-  height: 64px;
+  height: 52px;
   display: flex;
   align-items: center;
-  padding: 0 32px;
+  padding: 0 24px;
   gap: 0;
   position: sticky;
   top: 0;
@@ -509,11 +509,11 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .nav-logo {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: 0.22em;
   color: var(--text);
-  margin-right: 42px;
+  margin-right: 30px;
   white-space: nowrap;
   text-transform: uppercase;
   animation: glitch 7s infinite;
@@ -532,12 +532,12 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .nav-tabs { display: flex; flex: 1; position: relative; }
 
 .tab-btn {
-  padding: 0 26px;
-  height: 64px;
+  padding: 0 18px;
+  height: 52px;
   background: none;
   border: none;
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -603,10 +603,10 @@ input, textarea, select, [contenteditable] { cursor: auto; }
     linear-gradient(105deg, rgba(255,70,85,0.1) 0%, rgba(255,70,85,0.03) 30%, transparent 60%),
     linear-gradient(180deg, #0D1018 0%, #070910 100%);
   border-bottom: 1px solid var(--border);
-  padding: 26px 38px;
+  padding: 8px 32px;
   display: flex;
   align-items: center;
-  gap: 42px;
+  gap: 26px;
   position: relative;
   overflow: hidden;
   animation: fadeInUp 0.4s ease both;
@@ -642,8 +642,8 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 .rank-icon-large {
-  width: 56px;
-  height: 56px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   animation: rankGlow 3s ease-in-out infinite;
 }
@@ -652,7 +652,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .tier-name {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--text);
@@ -686,7 +686,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .profile-playername {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text);
@@ -740,7 +740,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 /* ─── 頁面共用 ─── */
 .tab-page {
-  max-width: 1500px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 28px 16px 48px;
 }
@@ -862,7 +862,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .store-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  gap: 16px;
 }
 
 /* 夜市維持 4 欄 */
@@ -876,10 +876,10 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 /* 每日商店的大圖片區（夜市 card 維持原尺寸） */
 .skin-card:not(.night-skin) .skin-img-wrap {
-  height: 300px;
+  height: 160px;
 }
 .skin-card:not(.night-skin) .skin-img {
-  max-height: 240px;
+  max-height: 135px;
 }
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
@@ -1266,6 +1266,76 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   height: 24px;
   background: var(--draw);
   box-shadow: 0 0 6px rgba(156, 163, 175, 0.4);
+}
+
+/* ─── 對戰數據圖表（角色分布 / 地圖勝率） ─── */
+.match-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.chart-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  padding: 16px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.chart-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.bar-list { display: flex; flex-direction: column; gap: 10px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: 108px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  animation: fadeInUp 0.4s ease both;
+}
+.bar-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.bar-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.bar-name {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-track {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transform-origin: left center;
+  animation: barGrow 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bar-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (max-width: 700px) {
+  .match-charts { grid-template-columns: 1fr; }
 }
 
 /* ─── 對戰紀錄 ─── */
@@ -4970,6 +5040,40 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   cursor: default;
 }
 
+/* 等級說明 + 靜音切換 */
+.sp-level-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sp-level-desc {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  flex: 1;
+}
+.sp-mute {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.13);
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 4px 11px;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.sp-mute:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+.sp-mute.on {
+  background: rgba(255,70,85,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Footer */
 .sp-footer {
   display: flex;
@@ -5045,6 +5149,25 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   display: none;
 }
 
+/* 每日商店：名稱與價格同一行（名稱左、價格右），整塊縮小 */
+.skin-card:not(.night-skin) .skin-info { padding: 10px 14px 11px; }
+.skin-card:not(.night-skin) .skin-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.skin-card:not(.night-skin) .skin-name {
+  min-height: 0;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skin-card:not(.night-skin) .skin-cost { flex-shrink: 0; }
+
 /* ── 登入頁左側 LOGO 發光強化 ── */
 .ll-logo {
   text-shadow: 0 0 80px rgba(255, 255, 255, 0.12), 0 4px 24px rgba(0, 0, 0, 0.5);
@@ -5119,14 +5242,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   font-size: 0.78rem;
 }
 
-/* ── 玩家頭部資料：間距與字型放大 ── */
-.profile-header {
-  padding: 28px 44px;
-  gap: 44px;
-}
-.profile-playername {
-  font-size: 32px;
-}
+/* ── 玩家頭部資料 ── */
 .currency-val {
   font-size: 22px;
 }
@@ -5193,3 +5309,41 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   opacity: 0.55;
   flex-shrink: 0;
 }
+
+/* ── Toast 通知 ── */
+.toast-wrap {
+  position: fixed;
+  top: 76px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  min-width: 200px;
+  max-width: 340px;
+  background: rgba(20, 22, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  color: var(--text);
+  font-size: 13px;
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.38s;
+}
+.toast.toast-in { transform: translateX(0); opacity: 1; }
+.toast-icon { font-size: 16px; line-height: 1; flex-shrink: 0; }
+.toast-text { line-height: 1.35; word-break: break-word; }
+.toast-remove { border-left-color: var(--text-dim); }
+.toast-remove .toast-icon { color: var(--text-dim); }
+.toast-add .toast-icon { color: var(--accent); }
