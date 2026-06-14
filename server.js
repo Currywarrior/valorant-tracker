@@ -11,7 +11,14 @@ const path = require('path');
 const app = express();
 app.set('trust proxy', 1); // 部署在 Nginx / Railway / Render 後面時正確取得 IP
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    // html/css/js 每次都向伺服器驗證（配合 etag，沒改回 304、改了拿新版），避免使用者看到舊快取
+    if (/\.(html|css|js)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 // 資料持久化目錄：設了 DATA_DIR（在 Railway 掛載持久磁碟後）才啟用持久化；
 // 未設定時 DATA_DIR 退回專案目錄，一切行為與原本完全相同。
