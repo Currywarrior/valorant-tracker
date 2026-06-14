@@ -58,23 +58,19 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .bg-orb {
   position: fixed;
   border-radius: 50%;
-  filter: blur(130px);
+  filter: blur(60px);
   pointer-events: none;
   z-index: 0;
-  animation: orbFloat 20s ease-in-out infinite;
 }
 .bg-orb-red {
   width: 700px; height: 700px;
   background: radial-gradient(circle, rgba(255,70,85,0.3), transparent 70%);
   bottom: -280px; left: -180px;
-  animation-duration: 18s;
 }
 .bg-orb-purple {
   width: 500px; height: 500px;
   background: radial-gradient(circle, rgba(124,58,237,0.25), transparent 70%);
   top: -120px; right: -120px;
-  animation-duration: 24s;
-  animation-direction: reverse;
 }
 
 /* 移動格線背景 */
@@ -85,7 +81,6 @@ input, textarea, select, [contenteditable] { cursor: auto; }
     linear-gradient(rgba(255, 70, 85, 0.028) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 70, 85, 0.028) 1px, transparent 1px);
   background-size: 48px 48px;
-  animation: gridMove 22s linear infinite;
   pointer-events: none;
   z-index: 0;
 }
@@ -144,9 +139,6 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   92% { text-shadow: 2px 0 #00e5ff; transform: skewX(-3deg); }
   93% { text-shadow: none; transform: none; }
 }
-@keyframes gridMove {
-  to { background-position: 48px 48px; }
-}
 @keyframes winFlash {
   0%   { opacity: 1; }
   100% { opacity: 0; }
@@ -173,11 +165,6 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 @keyframes profileSlideIn {
   from { opacity: 0; transform: translateX(-22px); }
   to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%       { transform: translate(40px, -30px) scale(1.06); }
-  66%       { transform: translate(-25px, 45px) scale(0.95); }
 }
 @keyframes nightPulse {
   0%, 100% { opacity: 0.08; }
@@ -5185,4 +5172,24 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   .scan-lines,
   .bg-grid,
   .bg-orb { display: none !important; }
+}
+
+/* ── 商店卡片歷史出現標籤 ── */
+.skin-history {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.skin-history::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.55;
+  flex-shrink: 0;
 }

@@ -842,7 +842,11 @@ async function loadStore() {
   }
   document.querySelector('.night-market-section')?.remove();
 
-  const data = await apiFetch('/api/store', { method: 'POST' });
+  // 商店與歷史統計並行抓取，歷史用來在卡片上標示「上次出現」
+  const [data] = await Promise.all([
+    apiFetch('/api/store', { method: 'POST' }),
+    buildStoreHistoryStats(),
+  ]);
 
   if (data.error) {
     if (data.error === 'NOT_AUTHENTICATED' || data.error === 'TOKEN_EXPIRED') {
@@ -898,6 +902,40 @@ async function loadStore() {
   }
 }
 
+// 商店歷史統計：uuid -> 出現過的日期陣列（已排序）。重用 historyCache 避免重複請求。
+let storeHistoryStats = new Map();
+
+async function buildStoreHistoryStats() {
+  try {
+    if (!historyCache) historyCache = await apiFetch('/api/store/history');
+    const map = new Map();
+    for (const [date, skins] of Object.entries(historyCache || {})) {
+      for (const s of (skins || [])) {
+        if (!s || !s.uuid) continue;
+        if (!map.has(s.uuid)) map.set(s.uuid, []);
+        map.get(s.uuid).push(date);
+      }
+    }
+    for (const dates of map.values()) dates.sort(); // YYYY-MM-DD 字典序即時間序
+    storeHistoryStats = map;
+  } catch {
+    storeHistoryStats = new Map();
+  }
+}
+
+// 回傳某皮膚的歷史標籤文字（排除今天算「上次」），無紀錄回 null
+function skinHistoryBadge(uuid) {
+  const dates = storeHistoryStats.get(uuid);
+  if (!dates || dates.length === 0) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const past = dates.filter(d => d < today);
+  if (past.length === 0) return '首次登場';
+  const last = past[past.length - 1];
+  const days = Math.round((Date.parse(today) - Date.parse(last)) / 86400000);
+  const countPart = dates.length >= 3 ? ` · 共 ${dates.length} 次` : '';
+  return `上次 ${days} 天前${countPart}`;
+}
+
 function buildSkinCard(skin, isNight) {
   const card = document.createElement('div');
   const wishlist = getWishlist();
@@ -914,6 +952,10 @@ function buildSkinCard(skin, isNight) {
        <span class="discount-tag">-${skin.discountPercent}%</span>`
     : `<span>${skin.cost.toLocaleString()}</span>`;
 
+  // 每日商店（非夜市）顯示歷史出現標籤
+  const histText = (!isNight && skin.uuid) ? skinHistoryBadge(skin.uuid) : null;
+  const histHtml = histText ? `<div class="skin-history">${histText}</div>` : '';
+
   card.innerHTML = `
     <div class="skin-img-wrap">
       ${skin.icon
@@ -922,6 +964,7 @@ function buildSkinCard(skin, isNight) {
       ${skin.uuid ? `<button class="wishlist-btn${inWishlist ? ' active' : ''}" title="加入願望清單" data-uuid="${skin.uuid}">${inWishlist ? '&#x2665;' : '&#x2661;'}</button>` : ''}
     </div>
     <div class="skin-info">
+      ${histHtml}
       <p class="skin-name">${skin.name || 'Unknown Skin'}</p>
       <div class="skin-cost">
         <img src="https://media.valorant-api.com/currencies/85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741/displayicon.png"
