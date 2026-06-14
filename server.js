@@ -798,15 +798,22 @@ app.post('/api/store', async (req, res) => {
 });
 
 // ─── GET /api/store/history ───
-app.get('/api/store/history', (req, res) => {
+app.get('/api/store/history', async (req, res) => {
   const riot = getRiot(req);
   if (!riot.puuid) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
 
   try {
+    // 用 skinLevelCache 以 uuid 重新補全名稱/圖，修正歷史檔裡寫入過的壞資料（Unknown Skin/無圖）
+    await buildSkinCache();
+    const levels = skinLevelCache.levels || {};
+    const fix = (s) => {
+      const info = s.uuid ? (levels[s.uuid] || levels[s.uuid.toLowerCase()]) : null;
+      return info ? { ...s, name: info.skinName || s.name, icon: info.icon || s.icon } : s;
+    };
     const history = readStoreHistory(riot.puuid);
     const sorted = Object.keys(history)
       .sort((a, b) => b.localeCompare(a))
-      .map(date => ({ date, skins: history[date] }));
+      .map(date => ({ date, skins: (history[date] || []).map(fix) }));
     res.json(sorted);
   } catch (err) {
     console.error('[History] Error:', err.message);
