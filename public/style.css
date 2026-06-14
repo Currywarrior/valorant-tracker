@@ -815,19 +815,23 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .refresh-btn {
   width: 30px;
   height: 30px;
-  background: none;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
   color: var(--text-dim);
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.15s;
-  border-radius: 3px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+.refresh-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 70, 85, 0.12);
+}
 
 .state-msg {
   color: var(--text-dim);
@@ -4150,25 +4154,52 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 /* ══════════════════════════════════
    MUSIC BAR（嵌入 nav 下方）
 ══════════════════════════════════ */
+/* 號外：文字標籤鈕（與音樂圖示鈕區分） */
+.np-nav-btn {
+  margin-left: 10px;
+  height: 34px;
+  padding: 0 13px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  color: var(--text-dim);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+.np-nav-btn:hover {
+  color: #fff;
+  background: rgba(255, 70, 85, 0.12);
+  border-color: var(--accent);
+}
+
 .mp-nav-btn {
   margin-left: 10px;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid transparent;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
   color: var(--text-dim);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
   align-self: center;
 }
 .mp-nav-btn:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--accent);
+  background: rgba(255, 70, 85, 0.12);
+  border-color: var(--accent);
 }
 .mp-nav-btn.mp-nav-active {
   color: var(--accent);
