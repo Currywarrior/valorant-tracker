@@ -427,9 +427,6 @@ function _buildPeek(agent) {
     e.stopPropagation();
     _triggerUlt(agent);
   });
-
-  // 登場台詞（登入後觸發，繼承登入按鈕的 user gesture，可以播 TTS）
-  setTimeout(() => _peekSpeak(agent, true), 1400);
 }
 
 function _peekSpeak(agent, withVoice) {
