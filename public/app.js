@@ -1857,11 +1857,38 @@ function openNewspaper() {
       <span class="np-briefs-label">簡訊快報</span>
       ${briefs.map(b => `<span class="np-brief">▪ ${b}</span>`).join('')}
     </div>
+    <hr class="np-hr np-hr--thin">
+    <div class="np-coach">
+      <div class="np-coach-label">教練點評</div>
+      <div class="np-coach-body" id="np-coach-body">教練分析中…</div>
+    </div>
     <hr class="np-hr np-hr--thick">
     <div class="np-ad">${ad}</div>
   `;
 
   $('newspaper-overlay').classList.remove('np-hidden');
+
+  // AI 教練建議（Gemini，非同步載入，後端每人每天一次快取）
+  loadCoachAdvice({ name, tier, total, wins, losses, winrate, streak, streakType, topAgent, vp, ownedCnt });
+}
+
+async function loadCoachAdvice(summary) {
+  const el = document.getElementById('np-coach-body');
+  if (!el) return;
+  try {
+    const resp = await fetch('/api/coach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(summary),
+      credentials: 'same-origin',
+    });
+    const data = await resp.json();
+    if (data.error === 'NO_AI_KEY') { el.textContent = '（教練尚未上線：還沒設定 AI 金鑰）'; return; }
+    if (data.error) { el.textContent = '（教練暫時休息中，稍後再開一次試試）'; return; }
+    el.textContent = data.advice;
+  } catch {
+    el.textContent = '（教練暫時休息中，稍後再開一次試試）';
+  }
 }
 
 // 系統若要求「減少動態效果」，停用滑鼠跟隨的 3D 傾斜互動

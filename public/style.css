@@ -4154,31 +4154,30 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 /* ══════════════════════════════════
    MUSIC BAR（嵌入 nav 下方）
 ══════════════════════════════════ */
-/* 號外：文字標籤鈕（與音樂圖示鈕區分） */
+/* 號外：紅色強調快訊鈕（與低調的登出鈕、音樂圖示鈕都區分） */
 .np-nav-btn {
   margin-left: 10px;
   height: 34px;
-  padding: 0 13px;
+  padding: 0 15px;
   align-self: center;
   display: flex;
   align-items: center;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--accent);
-  color: var(--text-dim);
+  background: rgba(255, 70, 85, 0.12);
+  border: 1px solid var(--accent);
+  color: var(--accent);
   font-family: 'Rajdhani', sans-serif;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 .np-nav-btn:hover {
+  background: var(--accent);
   color: #fff;
-  background: rgba(255, 70, 85, 0.12);
-  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(255, 70, 85, 0.5);
 }
 
 .mp-nav-btn {
@@ -4507,6 +4506,27 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   padding: 8px 16px;
   margin-top: 4px;
   letter-spacing: 0.03em;
+}
+
+/* 教練點評（AI 生成） */
+.np-coach {
+  border-left: 3px solid #1a1a1a;
+  padding: 2px 0 2px 12px;
+  margin: 2px 0;
+}
+.np-coach-label {
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.np-coach-body {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #222;
+  text-align: justify;
+  white-space: pre-wrap;
 }
 
 /* ── Kill Feed ── */

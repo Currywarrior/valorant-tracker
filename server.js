@@ -821,6 +821,46 @@ app.get('/api/store/history', async (req, res) => {
   }
 });
 
+// ─── POST /api/coach（Gemini 戰績建議，每人每天一次快取） ───
+const coachCache = new Map(); // key: puuid|date -> advice
+app.post('/api/coach', async (req, res) => {
+  const riot = getRiot(req);
+  if (!riot.puuid) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.json({ error: 'NO_AI_KEY' }); // 未設 key：前端優雅降級
+
+  const today = new Date().toISOString().slice(0, 10);
+  const cacheKey = `${riot.puuid}|${today}`;
+  if (coachCache.has(cacheKey)) return res.json({ advice: coachCache.get(cacheKey), cached: true });
+
+  const s = req.body || {};
+  const streakTxt = s.streakType === 'W' ? `連勝 ${s.streak} 場` : s.streakType === 'L' ? `連敗 ${s.streak} 場` : '無連勝連敗';
+  const prompt = `你是一位 Valorant 教練。根據以下玩家最近的戰績，用繁體中文給 3 到 4 句簡單、中肯的建議與評價。直接講重點，像朋友給建議的口吻，不要客套話、不要 markdown、不要條列符號或星號。
+
+玩家：${s.name || '玩家'}
+段位：${s.tier || '未知'}
+最近 ${s.total || 0} 場：${s.wins || 0} 勝 ${s.losses || 0} 敗（勝率 ${s.winrate || 0}%）
+近況：${streakTxt}
+最常用角色：${s.topAgent || '未知'}
+VP 餘額：${s.vp || 0}，擁有皮膚 ${s.ownedCnt || 0} 款`;
+
+  try {
+    const r = await axios.post(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+      { contents: [{ parts: [{ text: prompt }] }] },
+      { headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' }, timeout: 15000 }
+    );
+    const advice = r.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!advice) return res.status(502).json({ error: 'AI_EMPTY' });
+    coachCache.set(cacheKey, advice);
+    res.json({ advice });
+  } catch (err) {
+    console.error('[Coach] Error:', err.response?.status, JSON.stringify(err.response?.data) || err.message);
+    res.status(502).json({ error: 'AI_FAILED' });
+  }
+});
+
 // ─── GET /api/inventory ───
 app.get('/api/inventory', async (req, res) => {
   const riot = getRiot(req);
