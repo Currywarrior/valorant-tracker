@@ -904,10 +904,17 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .skin-card:not(.night-skin) .skin-img {
   max-height: 135px;
 }
-/* 大螢幕（寬視窗）：每日商店卡片圖片回大，避免在寬螢幕顯得太小、空白太多 */
+/* 大螢幕（寬視窗）整體放大一檔：nav、段位橫幅、商店卡片都稍大，填滿畫面 */
 @media (min-width: 1440px) {
-  .skin-card:not(.night-skin) .skin-img-wrap { height: 210px; }
-  .skin-card:not(.night-skin) .skin-img { max-height: 180px; }
+  .topnav { height: 60px; }
+  .nav-logo { font-size: 20px; }
+  .tab-btn { height: 60px; font-size: 14px; padding: 0 22px; }
+  .profile-header { padding: 12px 40px; }
+  .rank-icon-large { width: 40px; height: 40px; }
+  .tier-name { font-size: 19px; }
+  .profile-playername { font-size: 28px; }
+  .skin-card:not(.night-skin) .skin-img-wrap { height: 235px; }
+  .skin-card:not(.night-skin) .skin-img { max-height: 200px; }
 }
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
