@@ -5,6 +5,7 @@ const state = {
   storeTimer: null,
   maps: {},
   ownedSkins: new Set(),
+  ownedSkinCount: 0,
   collectionLoaded: false,
   allCollectionSkins: []
 };
@@ -384,6 +385,7 @@ async function loadInventory() {
     if (!data.ownedUuids) return;
 
     state.ownedSkins = new Set(data.ownedUuids);
+    state.ownedSkinCount = data.ownedSkinCount || 0;  // 造型（不重複皮膚）數
 
     // 商店卡片可能已渲染，補上標記
     document.querySelectorAll('.skin-card[data-uuid]').forEach(card => {
@@ -1770,7 +1772,7 @@ function openNewspaper() {
   const wins     = results.filter(r => r === 'W').length;
   const losses   = results.filter(r => r === 'L').length;
   const winrate  = total > 0 ? Math.round(wins / total * 100) : 0;
-  const ownedCnt = state.ownedSkins.size;
+  const ownedCnt = state.ownedSkinCount || state.ownedSkins.size;
 
   let streak = 0, streakType = '';
   for (const r of results) {

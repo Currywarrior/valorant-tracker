@@ -875,7 +875,18 @@ app.get('/api/inventory', async (req, res) => {
       { headers, timeout: 12000 }
     );
     const items = invRes.data?.Entitlements || [];
-    res.json({ ownedUuids: items.map(i => i.ItemID) });
+    const ownedUuids = items.map(i => i.ItemID);
+
+    // 把擁有的「等級 uuid」映射回「皮膚 uuid」去重，得到造型（不重複皮膚）數
+    // （skinLevelCache 已排除預設皮膚，數字更貼近遊戲內收藏的造型總數）
+    await buildSkinCache();
+    const levels = skinLevelCache.levels || {};
+    const skinSet = new Set();
+    for (const u of ownedUuids) {
+      const info = levels[u] || levels[u?.toLowerCase()];
+      if (info?.skinUuid) skinSet.add(info.skinUuid);
+    }
+    res.json({ ownedUuids, ownedSkinCount: skinSet.size });
   } catch (err) {
     console.error('[Inventory] Error:', err.response?.status, err.message);
     res.status(500).json({ error: 'INVENTORY_FETCH_FAILED' });
