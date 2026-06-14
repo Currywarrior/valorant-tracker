@@ -300,6 +300,7 @@ async function buildSkinCache() {
           levelIndex: idx,
           isPurchasable,
           themeUuid: skin.themeUuid || null,
+          streamedVideo: level.streamedVideo || null,
         };
       }
       const skinChromas = (skin.chromas || []).map((c, cidx) => ({
@@ -431,15 +432,6 @@ const REGION_TO_SHARD = {
 
 function toShard(region) {
   return REGION_TO_SHARD[region?.toLowerCase()] || 'ap';
-}
-
-async function fetchSkinData(uuid) {
-  try {
-    const r = await axios.get(`https://valorant-api.com/v1/weapons/skinlevels/${uuid}?language=zh-TW`, { timeout: 5000 });
-    return r.data.data;
-  } catch {
-    return { displayName: 'Unknown Skin', displayIcon: null };
-  }
 }
 
 // store-history 格式：{ [puuid]: { [date]: [...skins] } }
@@ -756,15 +748,16 @@ app.post('/api/store', async (req, res) => {
       { headers, timeout: 10000 }
     );
 
+    await buildSkinCache();
+
     const layout = storeRes.data.SkinsPanelLayout;
     const rawOffers = layout?.SingleItemStoreOffers || [];
 
-    const dailyOffers = await Promise.all(rawOffers.map(async (offer) => {
+    const dailyOffers = rawOffers.map((offer) => {
       const uuid = offer.Rewards?.[0]?.ItemID;
-      const skin = uuid ? await fetchSkinData(uuid) : { displayName: 'Unknown Skin', displayIcon: null };
       const skinInfo = uuid ? (skinLevelCache.levels?.[uuid] || skinLevelCache.levels?.[uuid?.toLowerCase()] || {}) : {};
-      return { uuid, name: skin.displayName, icon: skin.displayIcon, cost: offer.Cost?.[VP_CURRENCY] || 0, skinUuid: skinInfo.skinUuid || null, streamedVideo: skin.streamedVideo || null };
-    }));
+      return { uuid, name: skinInfo.skinName || 'Unknown Skin', icon: skinInfo.icon || null, cost: offer.Cost?.[VP_CURRENCY] || 0, skinUuid: skinInfo.skinUuid || null, streamedVideo: skinInfo.streamedVideo || null };
+    });
 
     const today = new Date().toISOString().slice(0, 10);
     writeStoreHistoryEntry(riot.puuid, today, dailyOffers.map(s => ({ uuid: s.uuid, name: s.name, icon: s.icon, cost: s.cost })));
@@ -772,18 +765,17 @@ app.post('/api/store', async (req, res) => {
     const rawNight = storeRes.data.BonusStore?.BonusStoreOffers || [];
     let nightMarket = null;
     if (rawNight.length > 0) {
-      nightMarket = await Promise.all(rawNight.map(async (offer) => {
+      nightMarket = rawNight.map((offer) => {
         const uuid = offer.Offer?.Rewards?.[0]?.ItemID;
-        const skin = uuid ? await fetchSkinData(uuid) : { displayName: 'Unknown Skin', displayIcon: null };
         const skinInfo = uuid ? (skinLevelCache.levels?.[uuid] || skinLevelCache.levels?.[uuid?.toLowerCase()] || {}) : {};
         return {
-          uuid, name: skin.displayName, icon: skin.displayIcon,
+          uuid, name: skinInfo.skinName || 'Unknown Skin', icon: skinInfo.icon || null,
           cost: offer.Offer?.Cost?.[VP_CURRENCY] || 0,
           discountCost: offer.DiscountCosts?.[VP_CURRENCY] || 0,
           discountPercent: Math.round(offer.DiscountPercent || 0),
-          skinUuid: skinInfo.skinUuid || null, streamedVideo: skin.streamedVideo || null
+          skinUuid: skinInfo.skinUuid || null, streamedVideo: skinInfo.streamedVideo || null
         };
-      }));
+      });
     }
 
     res.json({ dailyOffers, remainingSeconds: layout?.SingleItemOffersRemainingDurationInSeconds || 0, nightMarket });
