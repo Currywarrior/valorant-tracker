@@ -23,6 +23,14 @@
 </head>
 <body>
 
+  <!-- 武器圖輕度銳化濾鏡（補償 512px 圖源放大造成的模糊；kernel 總和=1 維持亮度，preserveAlpha 避免透明邊緣黑邊） -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="skinSharpen" x="0" y="0" width="100%" height="100%">
+      <feConvolveMatrix order="3" preserveAlpha="true"
+        kernelMatrix="0 -0.3 0  -0.3 2.2 -0.3  0 -0.3 0" />
+    </filter>
+  </svg>
+
   <!-- 大氣層背景 -->
   <div class="scan-lines" aria-hidden="true"></div>
   <div class="bg-orb bg-orb-red" aria-hidden="true"></div>

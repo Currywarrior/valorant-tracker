@@ -903,6 +903,9 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 .skin-card:not(.night-skin) .skin-img {
   max-height: 135px;
+  /* 圖源固定 512px 寬，限制顯示寬度避免過度放大（放大倍率壓到約 1.1x）＋輕度銳化補償細節 */
+  max-width: min(88%, 560px);
+  filter: url(#skinSharpen) drop-shadow(0 6px 16px rgba(0,0,0,0.6));
 }
 /* 大螢幕（寬視窗）整體放大一檔：nav、段位橫幅、商店卡片都稍大，填滿畫面 */
 @media (min-width: 1440px) {
@@ -1167,17 +1170,17 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .skel-line.short { width: 50%; margin-bottom: 0; }
 
 .skin-info {
-  padding: 12px 14px 14px;
+  padding: 14px 16px 16px;
 }
 
 .skin-name {
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text);
   line-height: 1.4;
   margin-bottom: 10px;
-  min-height: 36px;
-  letter-spacing: 0.01em;
+  min-height: 38px;
+  letter-spacing: 0.015em;
 }
 
 .skin-cost {
@@ -5264,18 +5267,6 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 /* ══════════════════════════════════════════════════════
    2026-06 視覺強化補丁
 ══════════════════════════════════════════════════════ */
-
-/* ── 每日商店皮膚卡片：info 區字型放大 ── */
-.skin-info {
-  padding: 14px 16px 16px;
-}
-.skin-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0.015em;
-  min-height: 38px;
-  margin-bottom: 10px;
-}
 
 /* 每日商店（非夜市）價格改成 pill 徽章 */
 .skin-card:not(.night-skin) .skin-cost {
