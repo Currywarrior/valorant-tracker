@@ -5887,4 +5887,19 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
   /* 內容區左右 padding 縮小 */
   .tab-page { padding: 18px 12px 40px; }
+
+  /* 音樂條：取消黏性（避免疊到兩行 nav）、改多行、年份切換橫滑 */
+  #music-bar {
+    position: relative;
+    top: auto;
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px 10px;
+  }
+  .mp-info { width: auto; flex: 1; min-width: 60px; }
+  .mp-seek { order: 5; flex-basis: 100%; }
+  .mp-tracks { order: 6; width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .mp-tracks::-webkit-scrollbar { display: none; }
+  .mp-yr img { width: 32px; height: 32px; }
 }
