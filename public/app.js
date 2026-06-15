@@ -141,12 +141,8 @@ async function cacheMaps() {
       const pick = splashMaps[Math.floor(Math.random() * splashMaps.length)];
       const loginEl = $('loginModal');
       if (loginEl) {
-        loginEl.style.backgroundImage = [
-          `linear-gradient(to top, rgba(5,8,12,0.88) 0%, rgba(5,8,12,0.5) 35%, rgba(5,8,12,0.1) 70%, rgba(5,8,12,0) 100%)`,
-          `url('${pick.splash}')`
-        ].join(', ');
-        loginEl.style.backgroundSize = 'cover';
-        loginEl.style.backgroundPosition = 'center';
+        // 背景圖交給 #loginModal::before（套 Ken Burns 緩慢縮放）；壓暗漸層在 ::after
+        loginEl.style.setProperty('--login-splash', `url('${pick.splash}')`);
       }
     }
   } catch {
@@ -1980,3 +1976,36 @@ async function apiFetch(url, opts = {}) {
 }
 
 init();
+
+// 登入頁副標打字機 + 統計數字滾動（一次性；尊重 reduced-motion）
+(function initLoginFx() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 打字機副標
+  const typed = document.querySelector('.ll-typed-text');
+  if (typed) {
+    const text = 'STORE · COLLECTION · MATCHES';
+    if (reduce) {
+      typed.textContent = text;
+    } else {
+      let i = 0;
+      const type = () => {
+        if (i <= text.length) { typed.textContent = text.slice(0, i++); setTimeout(type, 70); }
+      };
+      setTimeout(type, 900); // 配合標題入場後再開打
+    }
+  }
+  // 統計數字由 0 滾動到 data-target
+  document.querySelectorAll('.ll-stat-num').forEach(el => {
+    const target = +el.dataset.target;
+    if (reduce) { el.textContent = target; return; }
+    const dur = 1400;
+    let start = null;
+    const tick = (now) => {
+      if (start === null) start = now;
+      const p = Math.min((now - start) / dur, 1);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))); // easeOutCubic
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    setTimeout(() => requestAnimationFrame(tick), 1100); // 配合列表入場後
+  });
+})();

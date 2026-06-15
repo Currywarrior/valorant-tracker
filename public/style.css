@@ -5570,3 +5570,157 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   color: #e3b8bc;
 }
 .login-help-note b { color: #ff8a93; }
+
+/* ══════════════════════════════════════════════════════
+   登入頁生動化：背景電影感 + 入場動畫 + 互動光效
+══════════════════════════════════════════════════════ */
+
+/* 背景地圖移到底層偽元素，套 Ken Burns 緩慢縮放（GPU transform，圖網址由 JS 設 --login-splash） */
+#loginModal::before {
+  content: '';
+  position: absolute;
+  inset: -3%;
+  z-index: 0;
+  background-image: var(--login-splash, none);
+  background-size: cover;
+  background-position: center;
+  animation: kenBurns 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+/* 壓暗漸層 overlay（疊在地圖上、文字下，讓左下文字清楚） */
+#loginModal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(5, 8, 12, 0.9) 0%, rgba(5, 8, 12, 0.5) 35%, rgba(5, 8, 12, 0.1) 70%, rgba(5, 8, 12, 0) 100%);
+}
+@keyframes kenBurns {
+  0%   { transform: scale(1.05) translate(0, 0); }
+  100% { transform: scale(1.16) translate(-1.5%, -2.5%); }
+}
+
+/* 紅色餘燼光點緩緩上升（集中左側襯托標題） */
+.login-embers { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+.login-embers i {
+  position: absolute;
+  bottom: -16px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px 2px rgba(255, 70, 85, 0.55);
+  opacity: 0;
+  animation: emberFloat linear infinite;
+}
+.login-embers i:nth-child(1) { left: 8%;  animation-duration: 14s; animation-delay: 0s;  }
+.login-embers i:nth-child(2) { left: 19%; animation-duration: 18s; animation-delay: 4s;  }
+.login-embers i:nth-child(3) { left: 27%; animation-duration: 12s; animation-delay: 7s;  }
+.login-embers i:nth-child(4) { left: 36%; animation-duration: 20s; animation-delay: 2s;  }
+.login-embers i:nth-child(5) { left: 12%; animation-duration: 16s; animation-delay: 9s;  }
+.login-embers i:nth-child(6) { left: 31%; animation-duration: 22s; animation-delay: 12s; }
+.login-embers i:nth-child(7) { left: 23%; animation-duration: 15s; animation-delay: 6s;  }
+.login-embers i:nth-child(8) { left: 5%;  animation-duration: 19s; animation-delay: 14s; }
+@keyframes emberFloat {
+  0%   { transform: translateY(0) scale(1);        opacity: 0; }
+  12%  { opacity: 0.85; }
+  85%  { opacity: 0.45; }
+  100% { transform: translateY(-86vh) scale(0.35); opacity: 0; }
+}
+
+/* 左側品牌入場：依序浮現上升 */
+.ll-logo-v, .ll-logo span { display: inline-block; }
+.ll-logo .ll-logo-v {
+  color: #fff;
+  text-shadow: 0 0 80px rgba(255, 255, 255, 0.18), 0 4px 24px rgba(0, 0, 0, 0.5);
+  animation: fadeInUp 0.6s 0.08s both;
+}
+.ll-logo span   { animation: fadeInUp 0.6s 0.2s both; }
+.ll-divider     { animation: fadeInUp 0.55s 0.36s both; }
+.ll-desc        { animation: fadeInUp 0.55s 0.46s both; }
+.ll-features li { animation: fadeInUp 0.5s both; }
+.ll-features li:nth-child(1) { animation-delay: 0.56s; }
+.ll-features li:nth-child(2) { animation-delay: 0.66s; }
+.ll-features li:nth-child(3) { animation-delay: 0.76s; }
+.ll-features li:nth-child(4) { animation-delay: 0.86s; }
+
+/* 標題偶發故障跳動（glitch jitter）：週期短暫抖動傾斜，原發光保留、與子層入場不衝突 */
+.ll-logo { animation: glitchJitter 6s 1.6s infinite; }
+@keyframes glitchJitter {
+  0%, 90%, 100% { transform: none; }
+  91%   { transform: translateX(-3px) skewX(-5deg); }
+  92.5% { transform: translateX(3px)  skewX(4deg); }
+  94%   { transform: translateX(-2px) skewX(-2deg); }
+  95.5% { transform: translateX(1px); }
+  97%   { transform: none; }
+}
+
+/* 標題打字機副標 + 閃爍游標 */
+.ll-typed {
+  font-family: 'Rajdhani', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin: -16px 0 22px;
+  min-height: 20px;
+  animation: fadeInUp 0.6s 0.5s both;
+}
+.ll-typed-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 15px;
+  background: var(--accent);
+  margin-left: 4px;
+  vertical-align: -2px;
+  animation: caretBlink 0.9s steps(1) infinite;
+}
+@keyframes caretBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+/* 統計數字（進場時由 JS 從 0 滾動到目標） */
+.ll-stats {
+  display: flex;
+  gap: 40px;
+  margin-top: 28px;
+  animation: fadeInUp 0.5s 0.95s both;
+}
+.ll-stat { display: flex; flex-direction: column; gap: 3px; }
+.ll-stat-num {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 24px rgba(255, 70, 85, 0.25);
+}
+.ll-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* 登入框頂部紅條流光 */
+.login-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 3;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 25%, #ff9ba3 50%, var(--accent) 75%, transparent 100%);
+  background-size: 200% 100%;
+  animation: borderRun 3.2s linear infinite;
+}
+
+/* 尊重系統「減少動態」設定：關閉登入頁所有自動動畫 */
+@media (prefers-reduced-motion: reduce) {
+  #loginModal::before,
+  .login-box::before { animation: none; }
+  .login-embers { display: none; }
+  .ll-logo, .ll-logo-v, .ll-logo span, .ll-divider, .ll-desc, .ll-features li,
+  .ll-typed, .ll-stats { animation: none; }
+  .ll-typed-cursor { animation: none; opacity: 1; }
+}

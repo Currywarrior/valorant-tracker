@@ -54,9 +54,13 @@
   <!-- 登入畫面 -->
   <div id="loginModal">
 
+    <!-- 紅色餘燼光點（緩緩上升） -->
+    <div class="login-embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
     <!-- 左側品牌區 -->
     <div class="login-left">
-      <div class="ll-logo">VAL<br><span>TRACKER</span></div>
+      <div class="ll-logo"><span class="ll-logo-v">VAL</span><br><span>TRACKER</span></div>
+      <div class="ll-typed"><span class="ll-typed-text"></span><span class="ll-typed-cursor" aria-hidden="true"></span></div>
       <div class="ll-divider"></div>
       <p class="ll-desc">追蹤你的每日商店、收藏價值與對戰紀錄</p>
       <ul class="ll-features">
@@ -65,6 +69,10 @@
         <li>全收藏 VP 估算</li>
         <li>對戰紀錄與段位追蹤</li>
       </ul>
+      <div class="ll-stats">
+        <div class="ll-stat"><span class="ll-stat-num" data-target="1367">0</span><span class="ll-stat-label">收錄皮膚</span></div>
+        <div class="ll-stat"><span class="ll-stat-num" data-target="315">0</span><span class="ll-stat-label">組合包</span></div>
+      </div>
     </div>
 
     <div class="login-box">
