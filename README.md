@@ -47,6 +47,7 @@ Web Audio（音效）         dotenv                  generativelanguage.googlea
 ## 介面與工程做法
 
 - **電競硬核 UI**：紅黑配色、按鈕切角（clip-path）＋ hover 掃光／發光，全站按鈕統一設計語言；每日商店翻牌揭曉、皮膚卡偽 3D 傾斜等微互動。
+- **武器圖清晰度**：valorant-api 的皮膚圖固定 512px 寬（無更高清來源），為避免大螢幕放大造成模糊，每日商店圖限制顯示寬度（`max-width: min(88%, 560px)`）把放大倍率壓到約 1.1x，並以 SVG `feConvolveMatrix` 輕度銳化補償細節。
 - **純前端圖表**：對戰數據的角色分布、地圖勝率（CSS 橫條）與 K/D 走勢（SVG 折線）皆自行繪製，未引入任何圖表函式庫。
 - **效能**：滑鼠互動以 `requestAnimationFrame` 節流；支援 `prefers-reduced-motion`，系統設定減少動態時自動關閉動畫。
 - **快取破除**：`express.static` 對 html/css/js 設 `Cache-Control: no-cache` 搭配 etag，改動後一般刷新即拿到新版、未改動回 304。
@@ -197,6 +198,7 @@ tracker.gg 等官方認可的追蹤器就是這樣實作的，所以他們的登
 
 - Token 只在 HTTPS 下傳輸，不會被中間人攔截
 - Token 儲存在伺服器 session，不存在瀏覽器 localStorage
+- 登入網址輸入框設 `autocomplete="off"`，含一次性 Token 的登入網址不會被瀏覽器存進自動填入歷史
 - Token 有效期約一小時，過期後需重新登入
 - **我們的伺服器從不儲存帳號密碼**，密碼只存在你的瀏覽器和 Riot 之間
 
