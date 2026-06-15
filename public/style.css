@@ -5860,3 +5860,31 @@ input, textarea, select, [contenteditable] { cursor: auto; }
     justify-content: flex-start;
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   手機版 RWD — 階段二：登入後主頁（≤600px）
+══════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* 導航列：兩行 — 上行搜尋＋登出、下行分頁（可橫向滑動）；隱藏 logo */
+  .topnav { height: auto; min-height: 48px; padding: 6px 8px; flex-wrap: wrap; gap: 6px; }
+  .nav-logo { display: none; }
+  .nav-right { order: -1; width: 100%; display: flex; gap: 8px; }
+  .nav-right .id-input { flex: 1; min-width: 0; }
+  .nav-tabs { width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { padding: 0 12px; height: 40px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+
+  /* 段位橫幅：縮小、隱藏斜切裝飾，三塊塞進窄屏 */
+  .profile-header { padding: 8px 12px; gap: 10px; }
+  .profile-header::after { display: none; }
+  .profile-rank { min-width: 0; gap: 8px; }
+  .rank-icon-large { width: 24px; height: 24px; }
+  .tier-name { font-size: 12.5px; letter-spacing: 0.05em; }
+  .tier-rr { font-size: 12px; }
+  .profile-playername { font-size: 16px; }
+  .profile-playertag { font-size: 11px; }
+  .profile-currency { min-width: 0; gap: 12px; }
+
+  /* 內容區左右 padding 縮小 */
+  .tab-page { padding: 18px 12px 40px; }
+}
