@@ -199,13 +199,6 @@ function setupListeners() {
 
 // ─── 認證 ───
 
-// 跨域安全限制下偵測不到使用者在 404 頁「複製完」的動作，改在貼上網址時關閉這個 Riot 視窗
-let authPopup = null;
-function closeAuthPopup() {
-  // 延遲一拍讓貼上先完成再關；若視窗已被手動關閉則略過
-  setTimeout(() => { if (authPopup && !authPopup.closed) authPopup.close(); authPopup = null; }, 120);
-}
-
 function handleLogin() {
   const region = $('regionSelect').value;
   sessionStorage.setItem('loginRegion', region);
@@ -218,9 +211,7 @@ function handleLogin() {
     scope: 'account openid',
   });
 
-  authPopup = window.open(authUrl, 'riot-auth', 'width=480,height=680,left=200,top=80');
-  // 貼上網址的瞬間自動關閉上面那個 Riot 404 視窗（抓得到的、最接近「複製完」的時機）
-  $('tokenUrlInput').addEventListener('paste', closeAuthPopup, { once: true });
+  window.open(authUrl, 'riot-auth', 'width=480,height=680,left=200,top=80');
   $('loginStep1').style.display = 'none';
   $('loginStep2').style.display = 'block';
   $('loginError').textContent = '';
