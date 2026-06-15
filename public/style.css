@@ -5829,3 +5829,34 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .rank-ladder-loading { padding: 24px; text-align: center; color: var(--text-dim); font-size: 13px; }
 .rank-ladder-note { margin: 12px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-dim); text-align: center; }
 .rank-ladder-note b { color: #c7cedb; }
+
+/* ══════════════════════════════════════════════════════
+   手機版 RWD — 階段一：登入頁改單欄垂直佈局（≤600px）
+══════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  #loginModal { flex-direction: column; }
+
+  /* 品牌區：佔上方、內容靠近登入框，精簡掉桌面才放得下的東西 */
+  .login-left {
+    flex: 1;
+    justify-content: flex-end;
+    padding: 0 24px 18px;
+  }
+  .ll-logo { font-size: 46px; margin-bottom: 14px; }
+  .ll-typed { margin: -10px 0 14px; font-size: 13px; }
+  .ll-desc { font-size: 13px; margin-bottom: 0; max-width: none; }
+  .ll-features, .ll-stats, .login-watermark { display: none; }
+
+  /* 登入框：全寬擺在下方 */
+  .login-box {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    padding: 22px 24px 30px;
+    border-left: none;
+    border-top: 2px solid var(--accent);
+    box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.6);
+    justify-content: flex-start;
+  }
+}
