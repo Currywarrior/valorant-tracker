@@ -5724,3 +5724,108 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   .ll-typed, .ll-stats { animation: none; }
   .ll-typed-cursor { animation: none; opacity: 1; }
 }
+
+/* ══════════════════════════════════════════════════════
+   段位階梯彈窗
+══════════════════════════════════════════════════════ */
+.profile-rank { cursor: pointer; transition: opacity 0.15s; }
+.profile-rank:hover { opacity: 0.82; }
+
+.rank-ladder-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.rank-ladder-overlay.hidden { display: none; }
+
+.rank-ladder-card {
+  position: relative;
+  width: 380px;
+  max-width: 100%;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(150deg, #161b26, #0d1117);
+  border: 1px solid rgba(255, 70, 85, 0.3);
+  border-radius: 14px;
+  padding: 24px 22px 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.rank-ladder-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #8a93a6;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.rank-ladder-close:hover { color: #fff; }
+.rank-ladder-title {
+  margin: 0 0 16px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.rank-ladder-title .brand-slash { color: var(--accent); }
+
+.rank-ladder-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: rgba(255, 70, 85, 0.1);
+  border: 1px solid rgba(255, 70, 85, 0.25);
+  border-radius: 8px;
+}
+.rl-sum-icon { width: 44px; height: 44px; flex-shrink: 0; }
+.rl-sum-name { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: #fff; }
+.rl-sum-pct { font-size: 12.5px; color: #c7cedb; margin-top: 2px; }
+.rl-sum-pct b { color: var(--accent); font-size: 14px; }
+
+.rank-ladder-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+.rank-rung {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.rank-rung:hover { background: rgba(255, 255, 255, 0.03); }
+.rank-rung.current {
+  background: rgba(255, 70, 85, 0.14);
+  border: 1px solid rgba(255, 70, 85, 0.4);
+  padding: 7px 10px;
+}
+.rank-rung-icon { width: 30px; height: 30px; flex-shrink: 0; }
+.rank-rung-name {
+  flex: 1;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #c7cedb;
+  letter-spacing: 0.02em;
+}
+.rank-rung.current .rank-rung-name { color: #fff; }
+.rank-rung-pct { font-size: 12px; color: var(--text-dim); }
+.rank-rung-you { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; }
+.rank-ladder-loading { padding: 24px; text-align: center; color: var(--text-dim); font-size: 13px; }
+.rank-ladder-note { margin: 12px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-dim); text-align: center; }
+.rank-ladder-note b { color: #c7cedb; }

@@ -206,7 +206,7 @@
 
     <!-- 玩家資料頭部（登入後顯示） -->
     <div id="profileHeader" class="profile-header hidden">
-      <div class="profile-rank">
+      <div class="profile-rank" onclick="openRankLadder()" title="點看段位階梯與百分位">
         <img id="profileRankIcon" class="rank-icon-large" src="" alt="rank" onerror="this.style.display='none'">
         <div class="profile-rank-text">
           <div id="profileTierName" class="tier-name">--</div>
@@ -389,6 +389,17 @@
 
   <!-- YouTube 隱藏播放節點 -->
   <div id="yt-hidden" style="position:fixed;bottom:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+
+  <!-- 段位階梯彈窗 -->
+  <div id="rankLadder" class="rank-ladder-overlay hidden" onclick="if(event.target===this)closeRankLadder()">
+    <div class="rank-ladder-card">
+      <button class="rank-ladder-close" onclick="closeRankLadder()" aria-label="關閉">&times;</button>
+      <h2 class="rank-ladder-title"><span class="brand-slash">//</span> 段位階梯</h2>
+      <div id="rankLadderSummary" class="rank-ladder-summary"></div>
+      <div id="rankLadderList" class="rank-ladder-list"></div>
+      <p class="rank-ladder-note">百分位為依公開段位分布的<b>約略估算</b>，會隨賽季與地區變動。</p>
+    </div>
+  </div>
 
   <script src="features.js"></script>
   <script src="app.js"></script>

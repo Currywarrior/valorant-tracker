@@ -351,6 +351,7 @@ async function loadProfile() {
 
       tierNameEl.textContent = rankData.tierName || 'Unrated';
       tierRREl.textContent = `${rankData.rr ?? '--'} RR`;
+      state.currentTier = rankData.tier; // 給段位階梯彈窗標註目前段位用
 
       // 設定段位顏色（用 data-tier 屬性對應 CSS）
       const tierSlug = (rankData.tierName || '').toLowerCase().split(' ')[0];
@@ -1973,6 +1974,61 @@ async function apiFetch(url, opts = {}) {
     ...opts
   });
   return res.json();
+}
+
+// ─── 段位階梯 ───
+
+// 各段位「約超過 X% 玩家」估算（依公開段位分布，近似值、隨賽季與地區變動）
+const RANK_PERCENTILE = {
+  3: 1, 4: 3, 5: 5, 6: 8, 7: 14, 8: 21, 9: 27, 10: 34, 11: 42,
+  12: 49, 13: 56, 14: 64, 15: 70, 16: 75, 17: 80, 18: 84, 19: 87,
+  20: 90, 21: 92, 22: 94, 23: 96, 24: 97, 25: 98, 26: 99, 27: 99.9
+};
+
+let cachedTiers = null;
+async function fetchCompetitiveTiers() {
+  if (cachedTiers) return cachedTiers;
+  const json = await (await fetch('https://valorant-api.com/v1/competitivetiers?language=zh-TW')).json();
+  const eps = json.data || [];
+  const latest = eps[eps.length - 1];
+  cachedTiers = (latest?.tiers || []).filter(t => t.tier >= 3); // 排除 Unranked
+  return cachedTiers;
+}
+
+async function openRankLadder() {
+  const modal = $('rankLadder');
+  const list = $('rankLadderList');
+  const summary = $('rankLadderSummary');
+  modal.classList.remove('hidden');
+  list.innerHTML = '<div class="rank-ladder-loading">載入中…</div>';
+  summary.innerHTML = '';
+  try {
+    const tiers = await fetchCompetitiveTiers();
+    const cur = state.currentTier ?? 0;
+    const curTier = tiers.find(t => t.tier === cur);
+    if (curTier) {
+      summary.innerHTML = `<img src="${curTier.smallIcon}" class="rl-sum-icon" alt="">
+        <div><div class="rl-sum-name">${curTier.tierName}</div>
+        <div class="rl-sum-pct">約超過 <b>${RANK_PERCENTILE[cur]}%</b> 的玩家（估算）</div></div>`;
+    } else {
+      summary.innerHTML = '<div class="rl-sum-pct">目前尚無定位段位（Unranked）</div>';
+    }
+    list.innerHTML = tiers.slice().sort((a, b) => b.tier - a.tier).map(t => {
+      const isCur = t.tier === cur;
+      return `<div class="rank-rung${isCur ? ' current' : ''}">
+        <img src="${t.smallIcon}" class="rank-rung-icon" loading="lazy" alt="">
+        <span class="rank-rung-name">${t.tierName}</span>
+        ${isCur ? '<span class="rank-rung-you">★ 你在這裡</span>'
+                : `<span class="rank-rung-pct">${RANK_PERCENTILE[t.tier] ?? '--'}%</span>`}
+      </div>`;
+    }).join('');
+  } catch {
+    list.innerHTML = '<div class="rank-ladder-loading">段位資料載入失敗</div>';
+  }
+}
+
+function closeRankLadder() {
+  $('rankLadder').classList.add('hidden');
 }
 
 init();
