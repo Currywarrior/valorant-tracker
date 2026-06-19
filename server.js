@@ -847,7 +847,7 @@ VP 餘額：${s.vp || 0}，擁有皮膚 ${s.ownedCnt || 0} 款`;
 
   try {
     const r = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       { contents: [{ parts: [{ text: prompt }] }] },
       { headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' }, timeout: 15000 }
     );
