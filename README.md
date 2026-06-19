@@ -250,7 +250,7 @@ AI 教練點評串接 Google Gemini，免費額度對個人用途綽綽有餘（
 4. **本機**：在專案根目錄 `.env` 加一行 `GEMINI_API_KEY=你的金鑰`，存檔後**重啟 server**（`.env` 只在啟動時讀取，不重啟不會生效）。
 5. **線上（Railway）**：見下方部署說明，在 Variables 加一個同名變數。
 
-> 後端模型使用 `gemini-flash-latest`（Google 的滾動別名，會自動跟到最新的 flash 版本）。若 Google 調整型號名導致呼叫失敗，改 `server.js` 內 `/api/coach` 的型號字串即可。
+> 後端模型使用固定版號 `gemini-2.5-flash`。原本用滾動別名 `gemini-flash-latest`，但該別名會跟到負載較重的最新版，實測會間歇回 503（模型過載）導致教練「暫時休息中」，故改用固定版號較穩定。若該型號失效或配額用盡（429），改 `server.js` 內 `/api/coach` 的型號字串即可。
 >
 > **安全提醒**：`.env` 已被 `.gitignore` 排除、不會上傳到 GitHub；金鑰請勿寫進程式碼或公開貼出，若不慎外洩可到 AI Studio 刪除重建。
 
