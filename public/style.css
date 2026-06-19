@@ -522,7 +522,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .nav-logo {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 17px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.22em;
   color: var(--text);
@@ -550,7 +550,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   background: none;
   border: none;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -671,7 +671,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .tier-name {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--text);
@@ -690,7 +690,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .tier-name[data-tier="radiant"]    { color: #FFD700; }
 
 .tier-rr {
-  font-size: 15px;
+  font-size: 17px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -705,7 +705,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .profile-playername {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text);
@@ -713,7 +713,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 .profile-playertag {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-dim);
   margin-top: 3px;
   letter-spacing: 0.04em;
@@ -741,7 +741,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .currency-val {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
@@ -751,7 +751,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 .rp-val { color: var(--rp-color); }
 
 .currency-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--text-dim);
@@ -917,13 +917,8 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 /* 大螢幕（寬視窗）整體放大一檔：nav、段位橫幅、商店卡片都稍大，填滿畫面 */
 @media (min-width: 1440px) {
-  .topnav { height: 80px; }
-  .nav-logo { font-size: 20px; }
-  .tab-btn { height: 80px; font-size: 14px; padding: 0 22px; }
-  .profile-header { padding: 38px 40px; }
+  .tab-btn { padding: 0 22px; }
   .rank-icon-large { width: 40px; height: 40px; }
-  .tier-name { font-size: 19px; }
-  .profile-playername { font-size: 28px; }
 }
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
