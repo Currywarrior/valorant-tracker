@@ -510,7 +510,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
-  height: 80px;
+  height: 92px;
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -522,7 +522,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .nav-logo {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 22px;
+  font-size: 27px;
   font-weight: 700;
   letter-spacing: 0.22em;
   color: var(--text);
@@ -546,11 +546,11 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .tab-btn {
   padding: 0 18px;
-  height: 80px;
+  height: 92px;
   background: none;
   border: none;
   color: var(--text-dim);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -586,7 +586,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   background: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   transition: border-color 0.15s;
   border-radius: 3px;
@@ -602,7 +602,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   border: 1px solid var(--border);
   border-left: 2px solid var(--accent);   /* 左側紅色戰術裝飾條 */
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: 0.05em;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
@@ -622,7 +622,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
     linear-gradient(105deg, rgba(255,70,85,0.1) 0%, rgba(255,70,85,0.03) 30%, transparent 60%),
     linear-gradient(180deg, #0D1018 0%, #070910 100%);
   border-bottom: 1px solid var(--border);
-  padding: 38px 32px;
+  padding: 26px 32px;
   display: flex;
   align-items: center;
   gap: 26px;
@@ -661,8 +661,8 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 .rank-icon-large {
-  width: 28px;
-  height: 28px;
+  width: 46px;
+  height: 46px;
   object-fit: contain;
   animation: rankGlow 3s ease-in-out infinite;
 }
@@ -918,7 +918,6 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 /* 大螢幕（寬視窗）整體放大一檔：nav、段位橫幅、商店卡片都稍大，填滿畫面 */
 @media (min-width: 1440px) {
   .tab-btn { padding: 0 22px; }
-  .rank-icon-large { width: 40px; height: 40px; }
 }
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
@@ -4198,8 +4197,8 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .mp-nav-btn {
   margin-left: 10px;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border);
@@ -4211,6 +4210,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   transition: color 0.2s, background 0.2s, border-color 0.2s;
   align-self: center;
 }
+.mp-nav-btn svg { width: 20px; height: 20px; }
 .mp-nav-btn:hover {
   color: var(--accent);
   background: rgba(255, 70, 85, 0.12);
