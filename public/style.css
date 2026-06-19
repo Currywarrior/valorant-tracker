@@ -510,7 +510,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
-  height: 52px;
+  height: 80px;
   display: flex;
   align-items: center;
   padding: 0 24px;
@@ -546,7 +546,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 .tab-btn {
   padding: 0 18px;
-  height: 52px;
+  height: 80px;
   background: none;
   border: none;
   color: var(--text-dim);
@@ -622,7 +622,7 @@ input, textarea, select, [contenteditable] { cursor: auto; }
     linear-gradient(105deg, rgba(255,70,85,0.1) 0%, rgba(255,70,85,0.03) 30%, transparent 60%),
     linear-gradient(180deg, #0D1018 0%, #070910 100%);
   border-bottom: 1px solid var(--border);
-  padding: 8px 32px;
+  padding: 38px 32px;
   display: flex;
   align-items: center;
   gap: 26px;
@@ -882,6 +882,14 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 }
 
 /* ─── 商店格線 ─── */
+/* 每日商店整塊在剩餘畫面垂直置中（扣掉上方導覽列 80px + 段位橫幅約 110px） */
+#storeTab {
+  min-height: calc(100vh - 190px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .store-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -899,25 +907,23 @@ input, textarea, select, [contenteditable] { cursor: auto; }
 
 /* 每日商店的大圖片區（夜市 card 維持原尺寸） */
 .skin-card:not(.night-skin) .skin-img-wrap {
-  height: 160px;
+  height: 300px;
 }
 .skin-card:not(.night-skin) .skin-img {
-  max-height: 135px;
+  max-height: 255px;
   /* 圖源固定 512px 寬，限制顯示寬度避免過度放大（放大倍率壓到約 1.1x）＋輕度銳化補償細節 */
   max-width: min(88%, 560px);
   filter: url(#skinSharpen) drop-shadow(0 6px 16px rgba(0,0,0,0.6));
 }
 /* 大螢幕（寬視窗）整體放大一檔：nav、段位橫幅、商店卡片都稍大，填滿畫面 */
 @media (min-width: 1440px) {
-  .topnav { height: 60px; }
+  .topnav { height: 80px; }
   .nav-logo { font-size: 20px; }
-  .tab-btn { height: 60px; font-size: 14px; padding: 0 22px; }
-  .profile-header { padding: 12px 40px; }
+  .tab-btn { height: 80px; font-size: 14px; padding: 0 22px; }
+  .profile-header { padding: 38px 40px; }
   .rank-icon-large { width: 40px; height: 40px; }
   .tier-name { font-size: 19px; }
   .profile-playername { font-size: 28px; }
-  .skin-card:not(.night-skin) .skin-img-wrap { height: 235px; }
-  .skin-card:not(.night-skin) .skin-img { max-height: 200px; }
 }
 
 /* 滑鼠追蹤光暈（cursor spotlight）— 紅色，明顯 */
