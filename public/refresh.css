@@ -1,0 +1,596 @@
+/* ═══════════════════════════════════════════════════════════
+   refresh.css — 2026-10 介面整理
+   接在 style.css 之後載入，只做覆寫；拿掉 index.html 那行 <link> 即完全還原。
+   原則：東西一個都不拿掉，靠層級、位置、力道讓它們不互相搶。
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 1. 設計規則（全站共用） ─── */
+:root {
+  /* 文字三階：原本 dim/muted 對比太低（灰字在黑底上幾乎看不到，是「亂」的主因之一） */
+  --text-dim:   #8B93A7;
+  --text-muted: #4B5266;
+
+  /* 面板：統一卡片底色、邊框、圓角 */
+  --surface:        rgba(16, 18, 26, 0.72);
+  --surface-raised: rgba(22, 25, 35, 0.86);
+  --line:           rgba(255, 255, 255, 0.06);
+  --line-strong:    rgba(255, 255, 255, 0.11);
+  --radius:         6px;
+  --radius-sm:      4px;
+
+  /* 字級五階 */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 20px;
+  --fs-xl: 26px;
+
+  --nav-h: 64px;
+}
+
+/* 英雄探頭待命時藏在螢幕右緣外，會把頁面撐出橫向捲軸（手機最明顯）；只鎖橫向，不影響探頭動畫 */
+html { overflow-x: hidden; }
+
+/* ─── 2. 背景：保留格線、光暈、掃描線，力道收斂 ─── */
+.scan-lines {
+  animation: none;          /* 原本 0.3 秒一閃，長時間看會累 */
+  opacity: 0.25;
+}
+.bg-grid {
+  /* 格線只留在上半部，往下淡出，內容區不再被格子切碎 */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.35) 45%, transparent 80%);
+          mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.35) 45%, transparent 80%);
+}
+.bg-orb-red    { opacity: 0.55; }
+.bg-orb-purple { opacity: 0.6; }
+
+/* ─── 3. 頂部導覽列 ─── */
+.topnav {
+  height: var(--nav-h);
+  padding: 0 28px;
+  gap: 8px;
+}
+.nav-logo {
+  font-size: 21px;
+  letter-spacing: 0.2em;
+  margin-right: 28px;
+}
+.tab-btn {
+  height: var(--nav-h);
+  padding: 0 16px;
+  font-size: var(--fs-md);
+  letter-spacing: 0.04em;
+}
+.tab-indicator {
+  height: 2px;
+  box-shadow: 0 0 10px rgba(255, 70, 85, 0.7);
+}
+
+/* 右側工具區：號外、音樂、搜尋、登出 統一成同一種高度的控制項 */
+.nav-right { gap: 8px; }
+.np-nav-btn,
+.mp-nav-btn,
+.id-input,
+.logout-btn {
+  height: 36px;
+  margin: 0;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+.np-nav-btn {
+  padding: 0 14px;
+  letter-spacing: 0.14em;
+  background: rgba(255, 70, 85, 0.08);
+  border-color: rgba(255, 70, 85, 0.45);
+}
+.mp-nav-btn {
+  width: 36px;
+  border-color: var(--line-strong);
+  background: transparent;
+}
+.mp-nav-btn svg { width: 16px; height: 16px; }
+.id-input {
+  width: 230px;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line-strong);
+  color: var(--text-dim);
+}
+.id-input:focus { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.logout-btn {
+  padding: 0 14px;
+  border-color: var(--line-strong);
+  border-left: 1px solid var(--line-strong);
+  background: transparent;
+}
+
+/* 音樂播放列：原本 top 寫 64px 但導覽列是 92px，會被蓋住一截；導覽列改 64 後剛好對齊 */
+#music-bar {
+  top: var(--nav-h);
+  height: 60px;
+  padding: 0 28px;
+}
+
+/* ─── 4. 玩家資料列：身分靠左成一組，餘額靠右 ─── */
+.profile-header {
+  padding: 18px 32px;
+  gap: 0;
+}
+.profile-rank {
+  min-width: 0;
+  padding-right: 24px;
+  margin-right: 24px;
+  border-right: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+.rank-icon-large { width: 40px; height: 40px; }
+.tier-name { font-size: 17px; }
+.tier-rr   { font-size: var(--fs-sm); }
+
+.profile-player {
+  align-items: flex-start;
+  min-width: 0;
+}
+.profile-playername {
+  font-size: var(--fs-xl);
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-playertag { margin-top: 2px; font-size: var(--fs-sm); }
+
+.profile-currency { min-width: 0; gap: 10px; }
+.currency-item {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.currency-val   { font-size: 22px; line-height: 1; }
+.currency-label { font-size: var(--fs-xs); }
+
+/* ─── 5. 擊殺訊息：保留，但移到左下角，不再蓋住 VP/RP ─── */
+#killfeed {
+  top: auto;
+  right: auto;
+  bottom: 20px;
+  left: 20px;
+  align-items: flex-start;
+  opacity: 0.85;
+}
+.kf-entry {
+  border-left: none;
+  border-right: 2px solid rgba(255, 70, 85, 0.55);
+  padding: 4px 8px 4px 6px;
+  transform: translateX(-110%);
+}
+.kf-entry.kf-show { transform: translateX(0); }
+.kf-entry.kf-out  { transform: translateX(-70%); }
+
+/* ─── 6. 頁面標題列 ─── */
+.tab-page { padding: 32px 28px 56px; }
+.page-header { margin-bottom: 20px; min-height: 32px; }
+.page-title {
+  font-size: var(--fs-lg);
+  letter-spacing: 0.12em;
+  padding-left: 12px;
+}
+.page-hint { font-size: var(--fs-sm); }
+
+/* ─── 7. 手機版（≤600px） ─── */
+@media (max-width: 600px) {
+  .topnav { height: auto; padding: 8px 12px 0; gap: 6px; }
+  .nav-right { gap: 6px; }
+  .tab-btn { height: 42px; font-size: var(--fs-sm); }
+
+  /* 原本三欄硬擠，暱稱被壓成一個字一行；改成兩列：暱稱一列、段位與餘額一列 */
+  .profile-header {
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    row-gap: 12px;
+  }
+  .profile-player { order: -1; flex-basis: 100%; }
+  .profile-playername { font-size: var(--fs-lg); white-space: normal; }
+  .profile-rank { padding-right: 0; margin-right: 0; border-right: none; flex: 1 1 auto; }
+  .rank-icon-large { width: 28px; height: 28px; }
+  .tier-name { font-size: 14px; }
+  .currency-item { padding: 4px 8px; }
+  .currency-val { font-size: 17px; }
+
+  .tab-page { padding: 20px 14px 48px; }
+
+  #killfeed { bottom: 12px; left: 12px; transform: scale(0.85); transform-origin: bottom left; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   第 2 步：每日商店 + 歷史記錄 —— 共用同一套「皮膚卡」語言
+   稀有度色只出現在三個地方：頂端細線、圖片底部的光、價格數字
+   ═══════════════════════════════════════════════════════════ */
+
+/* 讓歷史格也吃到稀有度變數（原本只有商店卡、收藏卡有） */
+.history-skin-item[data-tier="select"]    { --tier-glow: var(--tier-select); }
+.history-skin-item[data-tier="deluxe"]    { --tier-glow: var(--tier-deluxe); }
+.history-skin-item[data-tier="premium"]   { --tier-glow: var(--tier-premium); }
+.history-skin-item[data-tier="ultra"]     { --tier-glow: var(--tier-ultra); }
+.history-skin-item[data-tier="exclusive"] { --tier-glow: var(--tier-exclusive); }
+
+/* ─── 商店：2×2 大卡，整組在一個畫面內看完 ─── */
+#storeTab { min-height: calc(100vh - 150px); }
+.store-grid { gap: 14px; }
+
+.skin-card {
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.skin-card[data-tier] {
+  border-top: 1px solid var(--line);
+  /* 頂端稀有度線：從左往右淡出，比原本整條 3px 實線細緻 */
+  background-image: linear-gradient(90deg, var(--tier-glow), transparent 70%);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+}
+.skin-card:not(.night-skin) .skin-img-wrap { height: 248px; }
+.skin-card:not(.night-skin) .skin-img { max-height: 200px; }
+
+/* 圖片區的稀有度光：從整片染色改成只在底部一圈，畫面不會變成一格一個顏色 */
+.skin-card[data-tier] .skin-img-wrap {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 100%, color-mix(in srgb, var(--tier-glow) 24%, transparent), transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,0.015), rgba(0,0,0,0.12)) !important;
+}
+
+.skin-card:not(.night-skin) .skin-info {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+.skin-card:not(.night-skin) .skin-name {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.skin-card:not(.night-skin) .skin-cost {
+  padding: 4px 11px;
+  font-size: var(--fs-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line);
+}
+.wishlist-btn { opacity: 0.55; transition: opacity 0.2s, transform 0.2s; }
+.skin-card:hover .wishlist-btn,
+.wishlist-btn.active { opacity: 1; }
+
+/* 重置倒數：數字用跟全站一致的等寬字，不再混 Courier */
+.timer-val {
+  font-family: 'Rajdhani', 'Inter', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+/* ─── 歷史記錄：左邊日期時間軸 + 右邊四張小皮膚卡 ─── */
+.history-list { gap: 14px; }
+.history-day {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.history-day-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 20px;
+  border-bottom: none;
+  border-right: 1px solid var(--line);
+  text-transform: none;
+  letter-spacing: 0;
+  position: relative;
+}
+/* 時間軸上的紅點 */
+.history-day-header::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 28px;
+  transform: translateY(-50%);
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  opacity: 0.8;
+}
+.hd-day {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.hd-wd { display: block; }
+.hd-meta {
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.history-day-grid { gap: 10px; padding: 10px; }
+.history-skin-item {
+  position: relative;
+  padding: 16px 12px 12px;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.history-skin-item:last-child { border-right: 1px solid var(--line); }
+.history-skin-item[data-tier] {
+  background:
+    linear-gradient(90deg, var(--tier-glow), transparent 75%) top / 100% 2px no-repeat,
+    radial-gradient(ellipse 70% 60% at 50% 100%, color-mix(in srgb, var(--tier-glow) 12%, transparent), transparent 70%),
+    rgba(255, 255, 255, 0.015);
+}
+.history-skin-item:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--tier-glow, #fff) 45%, transparent);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+.history-skin-thumb { height: 72px; }
+.history-skin-name { font-size: var(--fs-sm); font-weight: 600; }
+.history-skin-cost { font-size: var(--fs-xs); color: var(--tier-glow, var(--text-dim)); }
+
+@media (max-width: 900px) {
+  .history-day { grid-template-columns: 1fr; }
+  .history-day-header {
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px 4px;
+    border-right: none;
+  }
+  .history-day-header::before { top: 22px; height: 20px; }
+  .hd-day { font-size: 26px; }
+  .hd-wd { display: inline; margin-left: 8px; }
+}
+@media (max-width: 600px) {
+  #storeTab { min-height: 0; }
+  .skin-card:not(.night-skin) .skin-img-wrap { height: 190px; }
+  .skin-card:not(.night-skin) .skin-img { max-height: 150px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   第 3 步：對戰紀錄
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 上方統計摘要：唯一保留左側紅線的面板 ─── */
+.match-stats {
+  border-radius: var(--radius);
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: none;
+  padding: 18px 24px;
+}
+.stat-val   { font-size: 28px; }
+.stat-label { font-size: var(--fs-xs); letter-spacing: 0.06em; text-transform: none; }
+.winstreak-label { font-size: var(--fs-xs); text-transform: none; letter-spacing: 0.04em; }
+.streak-box.win  { box-shadow: 0 0 8px rgba(52, 211, 153, 0.35); }
+.streak-box.loss { box-shadow: 0 0 8px rgba(248, 113, 113, 0.3); }
+
+/* ─── 圖表面板：拿掉每塊都有的左紅線 ─── */
+.chart-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: none;
+  padding: 18px 22px;
+}
+.chart-title {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.bar-name { font-size: var(--fs-sm); }
+.bar-meta { font-size: var(--fs-xs); }
+.bar-track { height: 6px; }
+/* 角色條：依場次的長度，用品牌紅由實到虛 */
+#agentDist .bar-fill { background: linear-gradient(90deg, var(--accent), rgba(255, 70, 85, 0.45)); }
+.kda-axis { font-size: var(--fs-xs); }
+.kda-line { stroke-width: 2; }
+
+/* ─── 每一列對戰：四欄平均、內容靠左，不再兩端擠中間空 ─── */
+.matches-list { gap: 8px; }
+.match-card {
+  grid-template-columns: 150px minmax(170px, 0.9fr) minmax(220px, 1fr) minmax(220px, 1fr);
+  min-height: 84px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.match-card.win,
+.match-card.loss,
+.match-card.draw { box-shadow: none; }
+.match-card:hover { background: var(--surface-raised); }
+
+/* 地圖背景：加亮一點，再用漸層壓暗右側，讓 WIN/LOSS 仍然清楚 */
+.map-bg-img { opacity: 0.42; filter: saturate(0.75); }
+.match-map-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(90deg, rgba(8, 9, 13, 0.25), rgba(8, 9, 13, 0.7));
+}
+.result-label { font-size: 21px; }
+.round-score {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 英雄：頭像 + 名字橫排 */
+.match-agent-area {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 0 18px;
+  border-left-color: var(--line);
+}
+.agent-icon, .agent-icon-placeholder { width: 42px; height: 42px; flex-shrink: 0; }
+.agent-label { font-size: var(--fs-md); font-weight: 600; color: var(--text); text-align: left; }
+
+/* K/D/A：大數字一列、比值和分數一列，全部靠左 */
+.match-kda-area {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: "nums nums" "ratio score";
+  justify-content: start;
+  align-content: center;
+  column-gap: 14px;
+  row-gap: 4px;
+  padding: 0 22px;
+  border-left-color: var(--line);
+}
+.kda-nums { grid-area: nums; font-size: 24px; color: var(--text) !important; }
+.kda-label { display: none; }               /* 「K / D / A」三個字和上面數字重複，拿掉 */
+.kda-ratio-label { grid-area: ratio; margin: 0; font-size: var(--fs-sm); }
+.cs-label { grid-area: score; margin: 0; font-size: var(--fs-sm); }
+/* 只有 K/D 比值帶勝負色 */
+.match-kda-area:has(.kda-good) .kda-ratio-label,
+.match-kda-area:has(.kda-ok)   .kda-ratio-label { color: var(--win); }
+.match-kda-area:has(.kda-poor) .kda-ratio-label { color: var(--loss); }
+
+/* 對局資訊：地圖名大、模式小標籤、時間 */
+.match-info-area {
+  align-items: flex-start;
+  padding: 0 22px;
+  gap: 5px;
+  border-left-color: var(--line);
+}
+.map-label { font-size: var(--fs-md); }
+.mode-label {
+  font-size: 11px;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+.date-label { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 700px) {
+  /* 五項統計原本一橫排 + 32px 間距，手機撐出橫向捲軸 */
+  .match-stats { padding: 16px; }
+  .stats-summary { flex-wrap: wrap; gap: 16px 22px; }
+  .match-card { grid-template-columns: 1fr 1fr; }
+  .match-agent-area { padding: 12px 14px; }
+  .match-kda-area { padding: 12px 14px; }
+  .match-info-area { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; border-left: none; border-top: 1px solid var(--line); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   第 4 步：我的收藏 + 組合包庫
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 搜尋框、下拉選單：跟導覽列輸入框同一種樣子 ─── */
+.collection-toolbar, .bundles-toolbar { gap: 10px; margin-bottom: 16px; }
+.collection-search,
+.collection-filter {
+  height: 38px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+.collection-search:focus,
+.collection-filter:focus { background: rgba(255, 255, 255, 0.05); }
+
+/* ─── 收藏價值統計：顏色跟頂端 VP/RP 一致 ─── */
+.spending-bar {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  margin-bottom: 16px;
+}
+.spending-stat-val { font-size: 24px; color: var(--vp-color); }
+.spending-stat:has(img[alt="RP"]) .spending-stat-val { color: var(--rp-color); }
+.spending-count { color: var(--text); }
+.spending-stat-label { font-size: var(--fs-xs); letter-spacing: 0.04em; text-transform: none; }
+.spending-saved { color: var(--win); font-size: var(--fs-xs); }
+.spending-divider { background: var(--line-strong); }
+
+/* ─── 收藏卡片：跟商店同一套稀有度語言 ─── */
+.collection-grid { gap: 12px; }
+.collection-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.collection-card[data-tier] {
+  background:
+    linear-gradient(90deg, var(--tier-glow), transparent 70%) top / 100% 2px no-repeat,
+    var(--surface);
+}
+.collection-card[data-tier] .col-img-wrap,
+.col-img-wrap {
+  background:
+    radial-gradient(ellipse 65% 60% at 50% 100%, color-mix(in srgb, var(--tier-glow, #fff) 18%, transparent), transparent 72%),
+    linear-gradient(180deg, rgba(255,255,255,0.015), rgba(0,0,0,0.12));
+}
+.col-info { padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+.col-skin-name { font-size: var(--fs-sm); font-weight: 600; }
+.col-weapon-name { font-size: var(--fs-xs); color: var(--text-dim); }
+.tier-icon { width: 16px; height: 16px; opacity: 0.9; }
+.chroma-swatch { width: 16px; height: 16px; }
+
+/* ─── 組合包卡片 ─── */
+.bc-card {
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.bc-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); }
+.bc-card:hover .bc-img { transform: scale(1.04); }
+.bc-name { font-size: var(--fs-md); }
+.bc-price {
+  margin-top: 2px;
+  width: fit-content;
+  color: var(--vp-color);
+  background: rgba(8, 9, 13, 0.55);
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  backdrop-filter: blur(4px);
+}
+.vct-toggle { border-radius: var(--radius); border-color: var(--line-strong); }
+
+@media (max-width: 600px) {
+  /* 四項統計一橫排塞不下（原本就被切到畫面外），改 2×2 */
+  .spending-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 8px; padding: 14px; }
+  .spending-divider { display: none; }
+  .spending-stat-val { font-size: 20px; flex-wrap: wrap; justify-content: center; }
+  /* 收藏一行兩張，109 款不用捲到天荒地老 */
+  .collection-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .col-img-wrap { height: 104px; }
+  .col-skin-img { max-height: 80px; }
+  .col-info { padding: 8px 10px 10px; }
+  .collection-toolbar { flex-wrap: wrap; }
+  .collection-search { max-width: none; }
+}
+@media (max-width: 600px) {
+  /* 組合包原本一行一張、每張 460px 高，改一行兩張 */
+  .bundles-grid,
+  .bundles-regular-grid,
+  .vct-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .bc-overlay { padding: 32px 10px 10px; }
+  .bc-name { font-size: var(--fs-sm); }
+}

@@ -1351,7 +1351,9 @@ function renderKdaTrend(series) {
     el.innerHTML = '<div class="kda-trend-empty">場次不足，無法繪製走勢</div>';
     return;
   }
-  const W = 600, H = 140, padX = 14, padY = 20;
+  // 寬度照容器實際寬度，高度固定，手機和寬螢幕的圖都不會被壓扁或拉得太高
+  // 分頁還沒切過去時容器是隱藏的、量到 0，改用視窗寬扣掉頁面與面板的左右留白估算
+  const W = Math.max(320, el.clientWidth || Math.min(innerWidth, 1400) - 100), H = 150, padX = 14, padY = 20;
   const n = data.length;
   const maxKD = Math.max(2, ...data);
   const x = i => padX + (i * (W - 2 * padX)) / (n - 1);
@@ -1395,20 +1397,19 @@ function renderAgentDist(agentStats) {
   });
 }
 
-// 地圖勝率橫條（依場次排序，最多 7 個；bar 長度 = 勝率，顏色 紅→綠 隨勝率）
+// 地圖勝率橫條（依場次排序，最多 7 個；bar 長度 = 勝率，勝率過半綠、未過半紅）
 function renderMapWinrate(mapStats) {
   const el = $('mapWinrate');
   el.innerHTML = '';
   const arr = Object.entries(mapStats).sort((a, b) => b[1].games - a[1].games).slice(0, 7);
   arr.forEach(([name, s], i) => {
     const wr = Math.round((s.wins / s.games) * 100);
-    const hue = Math.round((wr / 100) * 130); // 0% 紅 → 100% 綠
     const row = document.createElement('div');
     row.className = 'bar-row';
     row.style.animationDelay = `${i * 50}ms`;
     row.innerHTML = `
       <div class="bar-head"><span class="bar-name">${name}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${wr}%;background:hsl(${hue},65%,48%)"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${wr}%;background:var(${wr >= 50 ? '--win' : '--loss'})"></div></div>
       <div class="bar-meta">${s.wins}勝 ${s.games - s.wins}敗 · ${wr}%</div>`;
     el.appendChild(row);
   });
@@ -1436,7 +1437,11 @@ function buildMatchCard(match, playerName, playerTag) {
   const redScore = teams.red?.rounds_won ?? '-';
   const mapName = match.metadata?.map || 'Unknown';
   const mode = match.metadata?.mode || '';
-  const date = match.metadata?.game_start_patched || '';
+  // 有開局時間戳就排成「10/6 週二 15:21」，沒有才用 API 給的英文長字串
+  const startTs = match.metadata?.game_start;
+  const date = startTs
+    ? (d => `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleDateString('zh-TW', { weekday: 'short' })} ${d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })}`)(new Date(startTs * 1000))
+    : (match.metadata?.game_start_patched || '');
   const agentIcon = me.assets?.agent?.small || '';
   // 優先使用 bust，fallback 到 full，最後才用 small
   const agentBust = me.assets?.agent?.bust || me.assets?.agent?.full || '';
@@ -1713,12 +1718,14 @@ function renderHistory(data) {
     dayEl.className = 'history-day';
 
     const dateObj = new Date(entry.date + 'T00:00:00');
+    // 日期拆成大字的「日」和小字的「年月・星期」，左側做成時間軸
     const dateLabel = isNaN(dateObj.getTime())
       ? entry.date
-      : dateObj.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+      : `<span class="hd-day">${dateObj.getDate()}</span>
+         <span class="hd-meta">${dateObj.getFullYear()} 年 ${dateObj.getMonth() + 1} 月<span class="hd-wd">${dateObj.toLocaleDateString('zh-TW', { weekday: 'long' })}</span></span>`;
 
     const skinsHtml = (entry.skins || []).map(skin => `
-      <div class="history-skin-item">
+      <div class="history-skin-item"${skin.cost ? ` data-tier="${costToTier(skin.cost)}"` : ''}>
         ${skin.icon
           ? `<img src="${skin.icon}" alt="${skin.name}" class="history-skin-thumb" loading="lazy">`
           : `<div class="history-skin-thumb-placeholder">?</div>`}
