@@ -88,6 +88,12 @@ const MELEE_TIER_VP = {
 };
 
 const BUNDLE_PATCH_MAP = {
+  // 2026-10-07 補：12.09 之後的新包（galleria 10/7、run it back neo frontier 7/29、dog days 為約略值）
+  'galleria': 1307, 'warden launch': 1306, 'champions 2026': 1306, 'dog days': 1305,
+  'aeris': 1304, 'run it back neo frontier': 1302, 'blackspyre': 1300, 'matchday': 1300,
+  'hi dr0': 1211, 'rogue': 1210,
+  // 2026-10-07 補：當初漏掉的老包
+  'arcane collector s set': 309, 'luxe': 100, 'avalanche': 100,
   'duo s day duckling duo': 1209, 'duo s day odd egg': 1209,
   'kuronami v26': 1208,
   'holo meridian': 1207,
@@ -1180,7 +1186,8 @@ app.get('/api/bundles/catalog', async (req, res) => {
       const entry = db[key] || null;
       const frag = b.uuid.replace(/-/g, '').substring(0, 8).toLowerCase();
       const enKey = uuidToEnKey[b.uuid] || '';
-      const patchSort = BUNDLE_PATCH_MAP[enKey] || 0;
+      // 表裡查不到的是表寫完之後才出的新包，排最前面
+      const patchSort = BUNDLE_PATCH_MAP[enKey] || 9999;
       return {
         uuid: b.uuid,
         displayName: b.displayName,
