@@ -2,7 +2,7 @@
 
 > 追蹤你的每日商店、收藏價值與對戰紀錄的 Valorant 個人網頁追蹤器
 
-**Live Demo** → [valorant-tracker-production-5cfa.up.railway.app](https://valorant-tracker-production-5cfa.up.railway.app)
+**Live Demo** → [valorant-tracker-qigk.onrender.com](https://valorant-tracker-qigk.onrender.com)
 
 ---
 
