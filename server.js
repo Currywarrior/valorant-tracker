@@ -902,6 +902,26 @@ app.get('/api/inventory', async (req, res) => {
 });
 
 // ─── GET /api/collection ───
+// 玩家目前裝備（每把槍的造型）：v2 在正式站回 404，v3、v2 依序試，記下每個版本的狀態碼
+// 回傳 { res: axios 回應或 null, tried: { v3: 狀態碼, v2: ... } }
+async function fetchLoadout(riot, headers) {
+  const tried = {};
+  for (const ver of ['v3', 'v2']) {
+    try {
+      const r = await axios.get(
+        `https://pd.${toShard(riot.region)}.a.pvp.net/personalization/${ver}/players/${riot.puuid}/playerloadout`,
+        { headers, timeout: 8000 }
+      );
+      tried[ver] = r.status;
+      return { res: r, tried };
+    } catch (e) {
+      tried[ver] = e.response?.status || e.message;
+    }
+  }
+  console.error('[Loadout] 全部版本都失敗:', tried);
+  return { res: null, tried };
+}
+
 app.get('/api/collection', async (req, res) => {
   const riot = getRiot(req);
   if (!riot.accessToken || riot.expiresAt <= Date.now())
@@ -943,15 +963,10 @@ app.get('/api/collection', async (req, res) => {
 
     if (entitlementItems.length > 0) {
       const equippedIds = new Set();
-      try {
-        const loadoutRes = await axios.get(
-          `https://pd.${shard}.a.pvp.net/personalization/v2/players/${riot.puuid}/playerloadout`,
-          { headers, timeout: 8000 }
-        );
-        for (const gun of loadoutRes.data?.Guns || []) {
-          if (gun.SkinLevelID) equippedIds.add(gun.SkinLevelID.toLowerCase());
-        }
-      } catch {}
+      const { res: loadoutRes } = await fetchLoadout(riot, headers);
+      for (const gun of loadoutRes?.data?.Guns || []) {
+        if (gun.SkinLevelID) equippedIds.add(gun.SkinLevelID.toLowerCase());
+      }
 
       const TIER_RANK = {
         'e046854e-406c-37f4-6607-19a9ba8426fc': 5,
@@ -1124,10 +1139,8 @@ app.get('/api/collection', async (req, res) => {
     }
 
     // Fallback：entitlements 為 0，改用 playerloadout（只顯示目前裝備的）
-    const loadoutRes = await axios.get(
-      `https://pd.${shard}.a.pvp.net/personalization/v2/players/${riot.puuid}/playerloadout`,
-      { headers, timeout: 12000 }
-    );
+    const { res: loadoutRes } = await fetchLoadout(riot, headers);
+    if (!loadoutRes) throw new Error('LOADOUT_FETCH_FAILED');   // 跟原本一樣走 500，不要顯示成空收藏
     const guns = loadoutRes.data?.Guns || [];
     const skins = guns
       .map(g => {
@@ -1348,22 +1361,7 @@ app.get('/api/loadout', async (req, res) => {
   if (!riot.accessToken || riot.expiresAt <= Date.now())
     return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
   try {
-    // v2 在正式站回 404，不確定是不是改版了：v3、v2 依序試，記下每個版本的狀態碼
-    const headers = await makeHeaders(riot);
-    const tried = {};
-    let loadoutRes = null;
-    for (const ver of ['v3', 'v2']) {
-      try {
-        loadoutRes = await axios.get(
-          `https://pd.${toShard(riot.region)}.a.pvp.net/personalization/${ver}/players/${riot.puuid}/playerloadout`,
-          { headers, timeout: 8000 }
-        );
-        tried[ver] = loadoutRes.status;
-        break;
-      } catch (e) {
-        tried[ver] = e.response?.status || e.message;
-      }
-    }
+    const { res: loadoutRes, tried } = await fetchLoadout(riot, await makeHeaders(riot));
     if (!loadoutRes) return res.json({ guns: {}, error: 'ALL_FAILED', tried });
     await buildSkinCache();
     // 預設槍不在造型快取裡（buildSkinCache 跳過預設主題），查不到就不回，前端維持原本的槍圖
