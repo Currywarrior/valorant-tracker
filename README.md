@@ -14,7 +14,15 @@
 | 皮膚預覽 | 點皮膚看大圖與各等級官方展示影片，**預設播放擊殺終結特效（Finisher）**，每個等級附中文解鎖說明、影片音量控制 |
 | 商店歷史智慧分析 | 每日商店卡片標示「上次出現幾天前 / 首次登場 / 共出現幾次」 |
 | 心願清單命中通知 | 商店有心願清單皮膚時，頂部顯示紅色 Banner 提醒 |
-| 對戰數據視覺化 | 勝率、平均 K/D、爆頭率、平均 ACS、最常用角色，加上**角色使用分布、地圖勝率橫條圖與最近 K/D 走勢折線**（純前端 SVG/CSS 繪製） |
+| 對戰紀錄 | 一場一張卡：地圖背景、特務、K/D/A、ACS、台灣時間 |
+| 分析頁 | 分成**總覽／對槍／隊伍／特務與武器**四個子分頁；主視覺有勝率環、自動結論句（攻守差距、主場與苦手圖）、K/D・ADR・ACS・爆頭率，主色跟著最常用特務的代表色變 |
+| 對戰累積 | 每場壓成約 1.5KB 摘要存進 **MongoDB Atlas**，分析不再只看最近 10 場；搭配 cron-job.org 每 3 小時自動幫登入過的玩家抓新場次 |
+| 亮點卡 | 最佳一場（ACS 最高）、招牌特務、招牌槍（顯示自己**目前裝備的造型**） |
+| RR 走勢 | 段位分數折線＋每場加減 RR 柱狀、淨 RR、最長連勝；RR 紀錄同樣存進資料庫累積 |
+| 對槍分析 | 玩家風格雷達（槍法／輸出／開局／生存／收割）、攻守勝率、首殺 vs 首死、**經濟局勝率**（手槍／省錢／半起／全起）、多殺、K/D 走勢 |
+| 最佳拍檔 | 依組隊紀錄列出最常一起打的人與各自勝率，以及單排 vs 組隊勝率 |
+| 特務與武器 | 特務立繪卡（勝率、K/D）、地圖卡（官方地圖圖片）、武器擊殺分布 |
+| 玩家資訊列 | 玩家卡背景、頭像與帳號等級、段位 RR 進度條、VP／RP 餘額 |
 | 歷史記錄 | 過去每日商店的皮膚紀錄，依日期分組 |
 | 收藏統計 | 全收藏市場價值 VP 估算、實際花費估算、已用 RP 計算 |
 | 組合包庫 | 歷代組合包瀏覽，依主題列出包含的皮膚、掛件、塗鴉 |
@@ -30,16 +38,20 @@
 ## 技術架構
 
 ```
-Frontend                 Backend (Railway)       外部 API
+Frontend                 Backend (Render)        外部 API
 ──────────────           ─────────────────       ───────────────────────────────
 HTML / CSS               Node.js + Express       auth.riotgames.com
 Vanilla JS               express-session         pd.{shard}.a.pvp.net
 SVG / CSS 圖表           express-rate-limit      valorant-api.com
 電競風 UI（clip-path）    axios                   api.henrikdev.xyz
-Web Audio（音效）         dotenv                  generativelanguage.googleapis.com（Gemini）
+Web Audio（音效）         mongodb                 generativelanguage.googleapis.com（Gemini）
+                         dotenv                  MongoDB Atlas（對戰摘要、RR 紀錄）
+
+cron-job.org --每 10 分鐘--> /api/cron/collect --每 3 小時一輪--> Henrik --> Atlas
 ```
 
-**部署平台：** Railway（自動從 GitHub 部署；靜態資源設 `Cache-Control: no-cache` 破除瀏覽器舊快取）  
+**部署平台：** Render 免費方案（push 到 master 自動部署；靜態資源設 `Cache-Control: no-cache` 破除瀏覽器舊快取）  
+**資料庫：** MongoDB Atlas M0（選用）；集合 `match_summaries`、`players`、`rr_history`，未設 `MONGODB_URI` 時自動退回只看最近 10 場  
 **Session 儲存：** 預設伺服器記憶體（MemoryStore），重啟後清除；設定 `DATA_DIR` 後改用 session-file-store 持久化（重啟不需重登）  
 
 ---
@@ -48,7 +60,10 @@ Web Audio（音效）         dotenv                  generativelanguage.googlea
 
 - **電競硬核 UI**：紅黑配色、按鈕切角（clip-path）＋ hover 掃光／發光，全站按鈕統一設計語言；每日商店翻牌揭曉、皮膚卡偽 3D 傾斜等微互動。
 - **武器圖清晰度**：valorant-api 的皮膚圖固定 512px 寬（無更高清來源），為避免大螢幕放大造成模糊，每日商店圖限制顯示寬度（`max-width: min(88%, 560px)`）把放大倍率壓到約 1.1x，並以 SVG `feConvolveMatrix` 輕度銳化補償細節。
-- **純前端圖表**：對戰數據的角色分布、地圖勝率（CSS 橫條）與 K/D 走勢（SVG 折線）皆自行繪製，未引入任何圖表函式庫。
+- **純前端圖表**：勝率環、風格雷達、RR 走勢、K/D 走勢（SVG）與各種橫條皆自行繪製，未引入任何圖表函式庫。
+- **對戰摘要**：Henrik 一場完整資料約 900KB（大多是擊殺座標），後端 `match-store.js` 只抽分析要用的欄位壓成約 1.5KB 再存，512MB 免費額度可存數十萬場；攻守方由「紅隊上半場進攻」推算，手槍局看回合位置、其餘依全隊裝備價值分類。
+- **特務主題色**：分析頁所有重點色走 CSS 變數 `--theme`，由前端依最常用特務設定（例如 Fade 藍紫、Phoenix 橘）。
+- **Riot API 版本容錯**：`personalization/v2/playerloadout` 在正式站回 404，`fetchLoadout()` 改為 v3、v2 依序嘗試並回報各版本狀態碼。
 - **效能**：滑鼠互動以 `requestAnimationFrame` 節流；支援 `prefers-reduced-motion`，系統設定減少動態時自動關閉動畫。
 - **快取破除**：`express.static` 對 html/css/js 設 `Cache-Control: no-cache` 搭配 etag，改動後一般刷新即拿到新版、未改動回 304。
 - **分享預覽**：`<head>` 內建 Open Graph / Twitter Card 與 favicon，貼到 Discord／社群會顯示預覽卡。
@@ -64,7 +79,7 @@ Web Audio（音效）         dotenv                  generativelanguage.googlea
 ### 三個角色
 
 ```
-你的瀏覽器   ←→   Riot 伺服器   ←→   我們的 Railway 伺服器
+你的瀏覽器   ←→   Riot 伺服器   ←→   我們的 Render 伺服器
 ```
 
 這三者之間的關係決定了整個登入流程的設計。
@@ -152,18 +167,18 @@ const params = new URLSearchParams(hash);          // 解析成 key-value
 const accessToken = params.get('access_token');    // 拿到 token
 ```
 
-然後把 token 傳給我們的 Railway 伺服器。
+然後把 token 傳給我們的 Render 伺服器。
 
 ---
 
 #### Step 6 — 伺服器拿 Token 去問 Riot 你是誰
 
 ```
-Railway Server → Riot API：
+Render Server → Riot API：
 GET https://auth.riotgames.com/userinfo
 Authorization: Bearer eyJra...
 
-Riot API → Railway Server：
+Riot API → Render Server：
 {
   "sub": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",  // 你的 puuid
   "acct": {
@@ -185,7 +200,7 @@ Token 就像一張臨時員工證：
 ### 為什麼需要手動複製貼上？
 
 因為 Riot 只允許 token 跳轉到它事先認可的網址（`redirect_uri`）。  
-目前認可的只有 `playvalorant.com/opt_in`，我們的 Railway 網址不在清單裡。
+目前認可的只有 `playvalorant.com/opt_in`，我們的 Render 網址不在清單裡。
 
 如果能把 `redirect_uri` 設成我們自己的網址，token 就能自動跳回來，完全不需要手動複製。
 
@@ -250,7 +265,7 @@ AI 教練點評串接 Google Gemini，免費額度對個人用途綽綽有餘（
 3. 專案選現有的、或讓它在新專案中自動建立即可；生成後複製整串金鑰。
    > 新版金鑰是 `AQ.` 開頭的格式（不是舊的 `AIzaSy`），兩種都正常可用。
 4. **本機**：在專案根目錄 `.env` 加一行 `GEMINI_API_KEY=你的金鑰`，存檔後**重啟 server**（`.env` 只在啟動時讀取，不重啟不會生效）。
-5. **線上（Railway）**：見下方部署說明，在 Variables 加一個同名變數。
+5. **線上（Render）**：見下方部署說明，在 Environment 加一個同名變數。
 
 > 後端模型使用固定版號 `gemini-2.5-flash`。原本用滾動別名 `gemini-flash-latest`，但該別名會跟到負載較重的最新版，實測會間歇回 503（模型過載）導致教練「暫時休息中」，故改用固定版號較穩定。若該型號失效或配額用盡（429），改 `server.js` 內 `/api/coach` 的型號字串即可。
 >
@@ -258,25 +273,45 @@ AI 教練點評串接 Google Gemini，免費額度對個人用途綽綽有餘（
 
 ---
 
-## Railway 部署
+## 部署（Render + MongoDB Atlas + cron-job.org，全部免費）
+
+### 1. Render
 
 1. Fork 或 clone 此 repo 到你的 GitHub
-2. 前往 [railway.app](https://railway.app)，New Project → Deploy from GitHub Repo
-3. 選擇此 repo
-4. 在 Variables 頁面設定環境變數：
+2. 前往 [render.com](https://render.com)，New → Web Service → 選這個 repo
+3. Region 選 Singapore；**Instance Type 預設勾的是付費方案，要手動改成 Free**
+4. Build Command `npm install`、Start Command `npm start`
+5. Environment 設定變數：
    - 必填：`HENRIK_API_KEY`、`SESSION_SECRET`、`NODE_ENV=production`
-   - 選填：`GEMINI_API_KEY`（要啟用 AI 教練就加，值同本機 `.env` 那把）
-5. Settings → Networking → Generate Domain 取得公開網址
-6. （選用）要讓 session 與商店歷史**重啟後不消失**：在 service 掛載一個 Volume（Mount Path 設 `/data`），再把環境變數 `DATA_DIR` 設為 `/data`。Volume 需 Railway 付費方案。
+   - 選填：`GEMINI_API_KEY`、`MONGODB_URI`、`CRON_SECRET`（見下面兩步）
+   - `PORT` 不用填（Render 自己給）；`DATA_DIR` 不用填（免費方案沒有永久硬碟）
 
-每次 push 到 GitHub 會自動重新部署；改動 Variables 也會觸發重新部署。
+每次 push 到 GitHub 會自動重新部署；改動環境變數也會觸發重新部署。
+
+### 2. MongoDB Atlas（選用，讓分析頁累積超過 10 場）
+
+1. 到 [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas/register) 註冊，建立 **M0 Free** 叢集，Provider 選 AWS、Region 選 Singapore；不要勾 Preload sample dataset
+2. Database Access 建一個使用者並記下密碼
+3. Network Access → IP Access List 加 `0.0.0.0/0`（Render 免費方案沒有固定 IP，不開會連不上）
+4. Connect → Drivers → Node.js，複製 `mongodb+srv://...` 連線字串，把 `<db_password>` 換成密碼，填進 Render 的 `MONGODB_URI`
+
+### 3. cron-job.org（選用，自動抓新場次＋讓網站不休眠）
+
+1. `CRON_SECRET` 設一串隨機字串（產生方式同 `SESSION_SECRET`）
+2. 到 [cron-job.org](https://console.cron-job.org/signup) 註冊，建立一個每 10 分鐘執行的任務，URL 填：
+   `https://你的網址.onrender.com/api/cron/collect?key=你的CRON_SECRET`
+3. 後端每次被呼叫時，距上次抓取未滿 3 小時就直接回 `TOO_SOON`（只是保持清醒），滿 3 小時才真的去 Henrik 抓一輪
+
+Render 免費方案每月 750 小時，一個服務 24 小時醒著約 744 小時，剛好夠用；同一個帳號不要再開第二個免費服務。
 
 ---
 
 ## 已知限制
 
 - **每日商店登入需手動複製貼上 URL**（見上方登入原理說明）
-- **未設 `DATA_DIR` 時，伺服器重啟後 session 與商店歷史會清除**，需重新登入；掛載 Volume 並設 `DATA_DIR` 即可持久化
+- **未設 `DATA_DIR` 時，伺服器重啟後 session 與商店歷史會清除**，需重新登入；Render 免費方案每次部署都會重啟，所有人都要重新登入
+- **Henrik 一次只給最近 10 場對戰、20 筆 RR**：更早的資料要靠 Atlas 從設定那天起慢慢累積；後來才加的欄位（組隊、經濟局）只有新場次和還在最近 10 場內的會補到
+- **所有人共用同一把 `HENRIK_API_KEY`**：免費金鑰每分鐘 30 次，幾個人用沒問題，人很多同時刷新時可能暫時抓不到對戰
 - **組合包配件不完整**：valorant-api 對掛件／噴漆／卡片大多沒提供「所屬組合包」的對應資料（`themeUuid` 多為空），組合包內容主要靠主題歸類、無法保證每包配件齊全；武器皮膚則 100% 完整
 - **皮膚展示影片由 Riot 官方提供**：每個等級只有一支影片，擊殺特效是單殺或五殺由官方拍攝決定，程式無法更改或自動區分
 - **AI 教練需自備 `GEMINI_API_KEY`**，且每人每天僅生成一次（快取，省額度）；未設定金鑰時該功能自動隱藏
