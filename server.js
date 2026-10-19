@@ -837,10 +837,11 @@ app.post('/api/coach', async (req, res) => {
   if (!apiKey) return res.json({ error: 'NO_AI_KEY' }); // 未設 key：前端優雅降級
 
   const today = new Date().toISOString().slice(0, 10);
-  const cacheKey = `${riot.puuid}|${today}`;
+  const s = req.body || {};
+  // 戰績變了（例如先前在對戰紀錄沒載入時問過）就重新問，不要整天卡在舊建議
+  const cacheKey = `${riot.puuid}|${today}|${s.total}-${s.wins}`;
   if (coachCache.has(cacheKey)) return res.json({ advice: coachCache.get(cacheKey), cached: true });
 
-  const s = req.body || {};
   const streakTxt = s.streakType === 'W' ? `連勝 ${s.streak} 場` : s.streakType === 'L' ? `連敗 ${s.streak} 場` : '無連勝連敗';
   const prompt = `你是一位 Valorant 教練。根據以下玩家最近的戰績，用繁體中文給 3 到 4 句簡單、中肯的建議與評價。直接講重點，像朋友給建議的口吻，不要客套話、不要 markdown、不要條列符號或星號。
 

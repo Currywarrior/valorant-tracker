@@ -1768,7 +1768,10 @@ function animateScramble(el, finalText) {
 }
 
 // ── 報紙戰報 ──────────────────────────────────────────────────────────────
-function openNewspaper() {
+async function openNewspaper() {
+  // 戰報是數畫面上的對戰卡片，沒點過對戰紀錄分頁就先載入，不然會算成 0 勝 0 敗
+  if (!document.querySelector('.match-card') && state.player.name) await loadMatches();
+
   const name  = $('profileName')?.textContent?.trim() || '無名玩家';
   const tag   = $('profileTag')?.textContent?.trim()  || '';
   const tier  = $('profileTierName')?.textContent?.trim() || '無段位';
