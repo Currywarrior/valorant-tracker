@@ -1817,11 +1817,11 @@ async function openNewspaper() {
     headline = `勝率跌破四成，${name} 堅稱「今天狀態不好」`;
     mainBody  = `追蹤顯示，上述聲明已在近 ${total} 場比賽後持續發表，觀察人士指出：「若以此為標準，人類可能不存在狀態好的一天。」心理師建議：先休息，再評估。`;
   } else if (winrate >= 60 && total >= 5) {
-    headline = `本週勝率 ${winrate}%，${name} 引發天梯動盪`;
+    headline = `最近 ${total} 場勝率 ${winrate}%，${name} 引發天梯動盪`;
     mainBody  = `對手陣營陷入輕度恐慌，部分玩家申請轉移至冷門時段。官方對此尚未表態，但伺服器負載數據顯示有不明波動。`;
   } else {
     headline = `${name} 於排位賽中繼續存在，情況尚在評估中`;
-    mainBody  = `本週共出現於 ${total} 場排位對局，具體影響正由各方評估中。隊友方面暫無官方聲明，對戰紀錄則如實保存。`;
+    mainBody  = `最近 ${total} 場排位對局皆有出席，具體影響正由各方評估中。隊友方面暫無官方聲明，對戰紀錄則如實保存。`;
   }
 
   // 三欄故事
