@@ -323,56 +323,74 @@
             <div id="winstreakGrid" class="winstreak-grid"></div>
           </div>
         </div>
+        <!-- 四個大數字：填滿主視覺中間 -->
+        <div class="an-hero-stats">
+          <div class="an-hs"><div class="an-hs-val" id="statAvgKDA">--</div><div class="stat-label">平均 K/D</div></div>
+          <div class="an-hs"><div class="an-hs-val" id="statADR">--</div><div class="stat-label">ADR 每回合傷害</div></div>
+          <div class="an-hs"><div class="an-hs-val" id="statACS">--</div><div class="stat-label">平均 ACS</div></div>
+          <div class="an-hs"><div class="an-hs-val" id="statHS">--%</div><div class="stat-label">爆頭率</div></div>
+        </div>
       </div>
-      <div id="matchCharts" class="match-charts hidden">
-        <!-- 亮點三連卡：最佳一場 / 招牌特務 / 招牌槍 -->
-        <div id="anHighlights" class="an-highlights chart-panel-wide"></div>
-        <!-- 數據卡 -->
-        <div class="an-tiles chart-panel-wide">
-          <div class="an-tile"><div class="an-tile-val" id="statAvgKDA">--</div><div class="stat-label">平均 K/D</div></div>
-          <div class="an-tile"><div class="an-tile-val" id="statADR">--</div><div class="stat-label">ADR 每回合傷害</div></div>
-          <div class="an-tile"><div class="an-tile-val" id="statACS">--</div><div class="stat-label">平均 ACS</div></div>
-          <div class="an-tile"><div class="an-tile-val" id="statHS">--%</div><div class="stat-label">爆頭率</div></div>
+      <div id="matchCharts" class="an-body hidden">
+        <!-- 子分頁：主視覺固定在上面，下面只換內容 -->
+        <div class="an-subtabs" role="tablist">
+          <button class="an-subtab active" data-sub="overview">總覽</button>
+          <button class="an-subtab" data-sub="combat">對槍</button>
+          <button class="an-subtab" data-sub="team">隊伍</button>
+          <button class="an-subtab" data-sub="arsenal">特務與武器</button>
         </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">RR 走勢</div>
-          <div id="rrTrend" class="rr-trend"></div>
+
+        <div class="match-charts an-sub active" data-sub="overview">
+          <div id="anHighlights" class="an-highlights chart-panel-wide"></div>
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">RR 走勢</div>
+            <div id="rrTrend" class="rr-trend"></div>
+          </div>
         </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">最佳拍檔</div>
-          <div id="partners"></div>
+
+        <div class="match-charts an-sub" data-sub="combat">
+          <div class="chart-panel an-radar-panel">
+            <div class="chart-title">玩家風格</div>
+            <div id="styleRadar" class="style-radar"></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">攻守勝率</div>
+            <div id="sideWinrate"></div>
+          </div>
+          <div class="chart-panel">
+            <div class="chart-title">首殺 vs 首死</div>
+            <div id="openingDuels"></div>
+          </div>
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">多殺</div>
+            <div id="multiKills" class="mk-grid"></div>
+          </div>
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">最近對戰 K/D 走勢</div>
+            <div id="kdaTrend" class="kda-trend"></div>
+          </div>
         </div>
-        <div class="chart-panel an-radar-panel">
-          <div class="chart-title">玩家風格</div>
-          <div id="styleRadar" class="style-radar"></div>
+
+        <div class="match-charts an-sub" data-sub="team">
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">最佳拍檔</div>
+            <div id="partners"></div>
+          </div>
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">地圖勝率</div>
+            <div id="mapWinrate" class="map-cards"></div>
+          </div>
         </div>
-        <div class="chart-panel">
-          <div class="chart-title">攻守勝率</div>
-          <div id="sideWinrate"></div>
-        </div>
-        <div class="chart-panel">
-          <div class="chart-title">首殺 vs 首死</div>
-          <div id="openingDuels"></div>
-        </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">最近對戰 K/D 走勢</div>
-          <div id="kdaTrend" class="kda-trend"></div>
-        </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">多殺</div>
-          <div id="multiKills" class="mk-grid"></div>
-        </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">特務戰績</div>
-          <div id="agentDist" class="agent-cards"></div>
-        </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">地圖勝率</div>
-          <div id="mapWinrate" class="map-cards"></div>
-        </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">武器擊殺分布</div>
-          <div id="weaponDist" class="weapon-list"></div>
+
+        <div class="match-charts an-sub" data-sub="arsenal">
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">特務戰績</div>
+            <div id="agentDist" class="agent-cards"></div>
+          </div>
+          <div class="chart-panel chart-panel-wide">
+            <div class="chart-title">武器擊殺分布</div>
+            <div id="weaponDist" class="weapon-list"></div>
+          </div>
         </div>
       </div>
     </div>

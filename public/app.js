@@ -176,6 +176,12 @@ function setupListeners() {
     });
   });
 
+  // 分析頁子分頁；記住上次看的那頁（只是個人方便，讀不到就從總覽開始）
+  document.querySelectorAll('.an-subtab').forEach(btn => {
+    btn.addEventListener('click', () => switchAnalysisSub(btn.dataset.sub));
+  });
+  try { switchAnalysisSub(localStorage.getItem('anSub') || 'overview'); } catch { switchAnalysisSub('overview'); }
+
   // 等 DOM 算完位置後設初始位置
   requestAnimationFrame(() => {
     const activeBtn = document.querySelector('.tab-btn.active');
@@ -318,6 +324,29 @@ async function handleLogout() {
 }
 
 // ─── Tab 切換 ───
+
+function switchAnalysisSub(sub) {
+  if (!document.querySelector(`.an-sub[data-sub="${sub}"]`)) sub = 'overview';
+  document.querySelectorAll('.an-subtab').forEach(b => b.classList.toggle('active', b.dataset.sub === sub));
+  document.querySelectorAll('.an-sub').forEach(p => p.classList.toggle('active', p.dataset.sub === sub));
+  try { localStorage.setItem('anSub', sub); } catch {}
+}
+
+// 分析頁主色跟著最常用特務走（取各特務的代表色）；表裡沒有的用品牌紅
+const AGENT_THEME = {
+  Fade: '#7C6CF6', Phoenix: '#FF8A3D', Cypher: '#CDBF98', Tejo: '#E0A84F', Jett: '#7FD3FF',
+  Reyna: '#B44CE6', Sage: '#4FE3C1', Sova: '#4F8BFF', Omen: '#6B67E0', Viper: '#4CD964',
+  Brimstone: '#E8853D', Raze: '#FF9A3D', Breach: '#E8743B', Killjoy: '#FFD84D', Skye: '#7CCF6B',
+  Yoru: '#4D6BFF', Astra: '#A46BFF', 'KAY/O': '#5FB0E8', Chamber: '#D6B16A', Neon: '#3DA9FF',
+  Harbor: '#2EC4B6', Gekko: '#B6F23D', Deadlock: '#C9D3E0', Iso: '#8B5CF6', Clove: '#E86BD5',
+  Vyse: '#B58CFF', Waylay: '#FFB3E6',
+};
+function applyAgentTheme(agent) {
+  const hex = AGENT_THEME[agent] || '#FF4655';
+  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ');
+  $('analysisTab').style.setProperty('--theme', hex);
+  $('analysisTab').style.setProperty('--theme-rgb', rgb);
+}
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1475,6 +1504,7 @@ function renderMatchStats(summaries) {
   const topAgent = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games)[0];
   if (topAgent) {
     $('statTopAgent').textContent = topAgent[0];
+    applyAgentTheme(topAgent[0]);
     if (topAgent[1].bust) {
       $('anHeroArt').src = topAgent[1].bust;
       $('anHeroArt').style.display = '';

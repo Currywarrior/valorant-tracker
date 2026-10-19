@@ -1180,3 +1180,126 @@ html { overflow-x: hidden; }
   border-radius: 999px;
   box-shadow: 0 0 12px rgba(255, 70, 85, 0.6);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   第 7 步：子分頁 + 主視覺四個大數字 + 主色跟著最常用特務走
+   --theme / --theme-rgb 由 app.js 的 applyAgentTheme() 設在 #analysisTab 上
+   ═══════════════════════════════════════════════════════════ */
+#analysisTab { --theme: #FF4655; --theme-rgb: 255, 70, 85; }
+
+/* ─── 主視覺：資訊與大數字並排，填滿原本中間的空白 ─── */
+.an-hero-info { flex: 0 1 340px; }
+.an-hero-stats {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 14px 18px;
+  margin-left: 12px;
+}
+.an-hs {
+  padding: 8px 0 8px 16px;
+  border-left: 2px solid rgba(var(--theme-rgb), 0.55);
+}
+/* 主視覺的數字跟勝率環同一級，破例用 34px */
+.an-hs-val {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(var(--theme-rgb), 0.35);
+}
+
+/* ─── 子分頁列：膠囊按鈕，捲動時黏在導覽列下方 ─── */
+.an-subtabs {
+  position: sticky;
+  top: calc(var(--nav-h) + 10px);
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 16px;
+  padding: 6px;
+  overflow-x: auto;
+  background: rgba(8, 9, 13, 0.72);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+}
+.an-subtab {
+  flex-shrink: 0;
+  padding: 9px 20px;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.an-subtab:hover { color: var(--text); }
+.an-subtab.active {
+  color: #fff;
+  background: rgba(var(--theme-rgb), 0.2);
+  border-color: rgba(var(--theme-rgb), 0.6);
+  box-shadow: 0 0 18px rgba(var(--theme-rgb), 0.35);
+}
+.an-body .an-sub { display: none; }
+.an-body .an-sub.active { display: grid; animation: fadeInUp 0.35s ease both; }
+
+/* ─── 主題色：把分析頁裡寫死的品牌紅換成特務代表色 ─── */
+#analysisTab .an-hero {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(var(--theme-rgb), 0.24), transparent 55%),
+    radial-gradient(80% 120% at 85% 100%, rgba(var(--theme-rgb), 0.14), transparent 60%),
+    linear-gradient(135deg, var(--surface-raised), var(--surface));
+}
+#analysisTab .an-hero::before { background: linear-gradient(90deg, var(--theme), rgba(var(--theme-rgb), 0.25) 60%, transparent); }
+#analysisTab .an-hero-art { filter: drop-shadow(0 0 40px rgba(var(--theme-rgb), 0.45)); }
+#anRingGrad stop:first-child { stop-color: var(--theme); }
+#anRingGrad stop:last-child  { stop-color: var(--theme); stop-opacity: 0.55; }
+#analysisTab .an-ring-fill { filter: drop-shadow(0 0 7px rgba(var(--theme-rgb), 0.7)); }
+#analysisTab .chart-panel { border-top-color: rgba(var(--theme-rgb), 0.22); }
+#analysisTab .hl-agent { background: radial-gradient(120% 120% at 100% 0%, rgba(var(--theme-rgb), 0.28), transparent 60%), var(--surface); }
+#analysisTab .agent-card { background: linear-gradient(135deg, var(--surface-raised), rgba(var(--theme-rgb), 0.12)); }
+#analysisTab .rd-title b { color: var(--theme); text-shadow: 0 0 14px rgba(var(--theme-rgb), 0.55); }
+#analysisTab .rd-area { stroke: var(--theme); filter: drop-shadow(0 0 10px rgba(var(--theme-rgb), 0.55)); }
+#analysisTab .rd-dot { stroke: var(--theme); }
+#rdGrad stop:first-child { stop-color: var(--theme); }
+#analysisTab .rr-line,
+#analysisTab .kda-line { stroke: var(--theme); filter: drop-shadow(0 0 6px rgba(var(--theme-rgb), 0.6)); }
+#rrArea stop { stop-color: var(--theme); }
+#analysisTab .kda-area { fill: rgba(var(--theme-rgb), 0.1); }
+#analysisTab #weaponDist .bar-fill { background: linear-gradient(90deg, var(--theme), rgba(var(--theme-rgb), 0.4)); }
+#analysisTab .weapon-row:first-child .weapon-icon img { filter: drop-shadow(0 0 6px rgba(var(--theme-rgb), 0.9)); }
+#analysisTab .map-card-bar i { background: linear-gradient(90deg, var(--theme), rgba(var(--theme-rgb), 0.5)); box-shadow: 0 0 8px rgba(var(--theme-rgb), 0.7); }
+#analysisTab .pt-best { border-color: rgba(var(--theme-rgb), 0.5); background: radial-gradient(120% 140% at 0% 0%, rgba(var(--theme-rgb), 0.2), transparent 60%), var(--surface-raised); }
+#analysisTab .pt-badge { background: var(--theme); box-shadow: 0 0 12px rgba(var(--theme-rgb), 0.6); }
+#analysisTab .page-title::before { background: var(--theme); }
+
+@media (max-width: 900px) {
+  .an-hero-stats { margin-left: 0; width: 100%; }
+}
+@media (max-width: 700px) {
+  .an-hero-info { flex: none; }
+  .an-hero-stats { grid-template-columns: repeat(2, 1fr); text-align: left; }
+  .an-hs-val { font-size: 28px; }
+  .an-subtabs { top: calc(var(--nav-h) + 6px); }
+  .an-subtab { padding: 8px 14px; font-size: var(--fs-sm); }
+}
+
+/* 主視覺排成「勝率環｜資訊｜立繪（中間、兩側淡出）｜大數字（靠右）」，數字不再壓在立繪上 */
+.an-hero-stats { margin-left: auto; }
+#analysisTab .an-hero-art {
+  right: auto; left: 40%; top: -8%;
+  height: 190%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 68%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 68%, transparent 100%);
+}
+@media (max-width: 900px) {
+  #analysisTab .an-hero-art { left: 50%; transform: translateX(-50%); opacity: 0.18; }
+}
