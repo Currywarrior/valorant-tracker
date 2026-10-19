@@ -1357,16 +1357,18 @@ app.get('/api/loadout', async (req, res) => {
     ]);
     // 預設槍不在造型快取裡（buildSkinCache 跳過預設主題），查不到就不回，前端維持原本的槍圖
     const guns = {};
-    for (const g of loadoutRes.data?.Guns || []) {
+    const rawGuns = loadoutRes.data?.Guns || [];
+    for (const g of rawGuns) {
       const level = skinLevelCache.levels[g.SkinLevelID?.toLowerCase()];
       if (!level) continue;
       const chroma = skinLevelCache.chromaByUuid[g.ChromaID?.toLowerCase()];
       guns[g.ID.toLowerCase()] = { skinName: level.skinName, icon: chroma?.icon || level.icon };
     }
-    res.json({ guns });
+    // checked / matched 方便從外面判斷是 Riot 沒給資料，還是造型對不上
+    res.json({ guns, checked: rawGuns.length, matched: Object.keys(guns).length });
   } catch (err) {
     console.error('[Loadout] Error:', err.response?.status || err.message);
-    res.json({ guns: {} });
+    res.json({ guns: {}, error: String(err.response?.status || err.message) });
   }
 });
 
