@@ -144,6 +144,7 @@
       <div class="nav-tabs">
         <button class="tab-btn active" data-tab="store">每日商店</button>
         <button class="tab-btn" data-tab="matches">對戰紀錄</button>
+        <button class="tab-btn" data-tab="analysis">分析</button>
         <button class="tab-btn" data-tab="history">歷史記錄</button>
         <button class="tab-btn" data-tab="collection">我的收藏</button>
         <button class="tab-btn" data-tab="bundles">組合包庫</button>
@@ -266,55 +267,88 @@
         <h2 class="page-title">對戰紀錄</h2>
         <span class="page-hint">在上方輸入 Riot ID 後按 Enter</span>
       </div>
-      <!-- 統計摘要區塊 -->
-      <div id="matchStats" class="match-stats hidden">
-        <div class="stats-summary">
-          <div class="stat-item">
-            <div class="stat-val" id="statWinrate">--%</div>
+      <div id="matchesList" class="matches-list">
+        <div class="state-msg">輸入右上角的 Name#TAG 後按 Enter 開始搜尋</div>
+      </div>
+    </div>
+
+    <!-- 分析頁 -->
+    <div id="analysisTab" class="tab-page hidden">
+      <div class="page-header">
+        <h2 class="page-title">分析</h2>
+        <span class="page-hint">最近 10 場（不含死鬥）</span>
+      </div>
+      <div id="analysisMsg" class="state-msg">輸入右上角的 Name#TAG 後按 Enter 開始搜尋</div>
+      <!-- 主視覺：勝率環 + 最常用特務立繪 -->
+      <div id="matchStats" class="an-hero hidden">
+        <img id="anHeroArt" class="an-hero-art" src="" alt="" onerror="this.style.display='none'">
+        <div class="an-ring">
+          <svg viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="anRingGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#FF4655"/>
+                <stop offset="100%" stop-color="#FF8A95"/>
+              </linearGradient>
+            </defs>
+            <circle class="an-ring-track" cx="60" cy="60" r="52"/>
+            <circle id="anRingFill" class="an-ring-fill" cx="60" cy="60" r="52"/>
+          </svg>
+          <div class="an-ring-center">
+            <div class="an-ring-val" id="statWinrate">--%</div>
             <div class="stat-label">勝率</div>
           </div>
-          <div class="stat-item">
-            <div class="stat-val" id="statAvgKDA">--</div>
-            <div class="stat-label">平均 K/D</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-val" id="statHS">--%</div>
-            <div class="stat-label">爆頭率</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-val" id="statACS">--</div>
-            <div class="stat-label">平均 ACS</div>
-          </div>
-          <div class="stat-item stat-agent">
+        </div>
+        <div class="an-hero-info">
+          <div class="an-record" id="anRecord">--</div>
+          <div class="an-top-agent">
             <img id="statTopAgentIcon" class="stat-agent-icon" src="" alt="" onerror="this.style.display='none'">
             <div>
-              <div class="stat-val" id="statTopAgent">--</div>
-              <div class="stat-label">最常用 Agent</div>
+              <div class="stat-label">最常用特務</div>
+              <div class="an-top-agent-name" id="statTopAgent">--</div>
             </div>
           </div>
-        </div>
-        <!-- 勝敗走勢格 -->
-        <div class="winstreak-wrap">
-          <div class="winstreak-label">最近對戰</div>
-          <div id="winstreakGrid" class="winstreak-grid"></div>
+          <div class="winstreak-wrap">
+            <div class="winstreak-label">勝敗走勢</div>
+            <div id="winstreakGrid" class="winstreak-grid"></div>
+          </div>
         </div>
       </div>
       <div id="matchCharts" class="match-charts hidden">
+        <!-- 數據卡 -->
+        <div class="an-tiles chart-panel-wide">
+          <div class="an-tile"><div class="an-tile-val" id="statAvgKDA">--</div><div class="stat-label">平均 K/D</div></div>
+          <div class="an-tile"><div class="an-tile-val" id="statADR">--</div><div class="stat-label">ADR 每回合傷害</div></div>
+          <div class="an-tile"><div class="an-tile-val" id="statACS">--</div><div class="stat-label">平均 ACS</div></div>
+          <div class="an-tile"><div class="an-tile-val" id="statHS">--%</div><div class="stat-label">爆頭率</div></div>
+        </div>
         <div class="chart-panel chart-panel-wide">
           <div class="chart-title">最近對戰 K/D 走勢</div>
           <div id="kdaTrend" class="kda-trend"></div>
         </div>
         <div class="chart-panel">
-          <div class="chart-title">角色使用分布</div>
+          <div class="chart-title">攻守勝率</div>
+          <div id="sideWinrate"></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">首殺 vs 首死</div>
+          <div id="openingDuels"></div>
+        </div>
+        <div class="chart-panel chart-panel-wide">
+          <div class="chart-title">多殺</div>
+          <div id="multiKills" class="mk-grid"></div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-title">特務戰績</div>
           <div id="agentDist" class="bar-list"></div>
         </div>
         <div class="chart-panel">
           <div class="chart-title">地圖勝率</div>
           <div id="mapWinrate" class="bar-list"></div>
         </div>
-      </div>
-      <div id="matchesList" class="matches-list">
-        <div class="state-msg">輸入右上角的 Name#TAG 後按 Enter 開始搜尋</div>
+        <div class="chart-panel chart-panel-wide">
+          <div class="chart-title">武器擊殺分布</div>
+          <div id="weaponDist" class="weapon-list"></div>
+        </div>
       </div>
     </div>
 

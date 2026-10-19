@@ -594,3 +594,231 @@ html { overflow-x: hidden; }
   .bc-overlay { padding: 32px 10px 10px; }
   .bc-name { font-size: var(--fs-sm); }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   第 4 步：分析頁（勝率環主視覺 + 數據卡 + 攻守 / 開局 / 多殺 / 武器）
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── 主視覺：左勝率環、右特務立繪淡出 ─── */
+.an-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  min-height: 210px;
+  padding: 28px 36px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 70, 85, 0.18), transparent 55%),
+    linear-gradient(135deg, var(--surface-raised), var(--surface));
+  animation: fadeInUp 0.4s ease both;
+}
+.an-hero::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), rgba(255, 70, 85, 0.25) 60%, transparent);
+}
+.an-hero-art {
+  position: absolute;
+  right: 6%;
+  top: -6%;           /* 立繪是全身像，從上方對齊才看得到臉 */
+  height: 250%;
+  opacity: 0.55;
+  pointer-events: none;
+  filter: drop-shadow(0 0 40px rgba(255, 70, 85, 0.35));
+  -webkit-mask-image: linear-gradient(to left, #000 25%, transparent 80%);
+          mask-image: linear-gradient(to left, #000 25%, transparent 80%);
+}
+.an-ring { position: relative; width: 156px; height: 156px; flex-shrink: 0; z-index: 1; }
+.an-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.an-ring-track { fill: none; stroke: rgba(255, 255, 255, 0.06); stroke-width: 9; }
+.an-ring-fill {
+  fill: none;
+  stroke: url(#anRingGrad);
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-dasharray: 326.73;   /* 2π × 52 */
+  stroke-dashoffset: 326.73;
+  transition: stroke-dashoffset 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+  filter: drop-shadow(0 0 6px rgba(255, 70, 85, 0.6));
+}
+.an-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+/* 全頁唯一超出字級五階的數字：主視覺焦點 */
+.an-ring-val {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.an-hero-info { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.an-record { font-size: var(--fs-lg); font-weight: 600; letter-spacing: 0.02em; }
+.an-top-agent { display: flex; align-items: center; gap: 10px; }
+.an-top-agent-name { font-size: var(--fs-md); font-weight: 600; }
+.an-hero .winstreak-wrap { align-items: flex-start; margin-left: 0; }
+
+/* ─── 數據卡：頂端紅色細線由實到虛 ─── */
+.an-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.an-tile {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  animation: fadeInUp 0.4s ease both;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.an-tile:nth-child(2) { animation-delay: 60ms; }
+.an-tile:nth-child(3) { animation-delay: 120ms; }
+.an-tile:nth-child(4) { animation-delay: 180ms; }
+.an-tile::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+.an-tile::after {
+  content: '';
+  position: absolute;
+  right: -30px; bottom: -40px;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 70, 85, 0.12), transparent 70%);
+}
+.an-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.an-tile-val {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 2px;
+}
+
+.an-note { margin-top: 14px; font-size: var(--fs-xs); color: var(--text-dim); }
+
+/* ─── 攻守勝率：進攻紅、防守藍，中線 = 50% ─── */
+.side-row + .side-row { margin-top: 16px; }
+.side-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.side-label { font-size: var(--fs-sm); color: var(--text-dim); }
+.side-val { font-family: 'Rajdhani', sans-serif; font-size: var(--fs-lg); font-weight: 700; }
+.side-row.atk .side-val { color: var(--accent); }
+.side-row.def .side-val { color: var(--vp-color); }
+.side-track {
+  position: relative;
+  height: 10px;
+  margin-bottom: 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.side-fill {
+  height: 100%;
+  border-radius: 5px;
+  transform-origin: left center;
+  animation: barGrow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.atk .side-fill { background: linear-gradient(90deg, rgba(255, 70, 85, 0.45), var(--accent)); box-shadow: 0 0 12px rgba(255, 70, 85, 0.5); }
+.def .side-fill { background: linear-gradient(90deg, rgba(125, 211, 252, 0.4), var(--vp-color)); box-shadow: 0 0 12px rgba(125, 211, 252, 0.45); }
+.side-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.4); }
+
+/* ─── 首殺 vs 首死：拔河條 ─── */
+.duel-nums { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.duel-side { text-align: center; min-width: 56px; }
+.duel-val { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; line-height: 1.1; }
+.duel-side.fk .duel-val { color: var(--win); text-shadow: 0 0 14px rgba(52, 211, 153, 0.45); }
+.duel-side.fd .duel-val { color: var(--loss); text-shadow: 0 0 14px rgba(248, 113, 113, 0.4); }
+.duel-pct {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+}
+.duel-pct span { font-family: 'Inter', sans-serif; font-size: var(--fs-xs); font-weight: 400; color: var(--text-dim); }
+.duel-bar { display: flex; gap: 3px; height: 10px; }
+.duel-fk, .duel-fd { border-radius: 5px; }
+.duel-fk {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.4), var(--win));
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.45);
+  transform-origin: left center;
+  animation: barGrow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.duel-fd { flex: 1; background: linear-gradient(90deg, var(--loss), rgba(248, 113, 113, 0.35)); }
+
+/* ─── 多殺徽章：2K 白 → 3K 藍 → 4K 紫 → ACE 金 ─── */
+.mk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.mk-badge {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 10px 14px;
+  text-align: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+  animation: fadeInUp 0.4s ease both;
+}
+.mk-tag { font-family: 'Rajdhani', sans-serif; font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.2em; color: var(--text-dim); }
+.mk-count { font-family: 'Rajdhani', sans-serif; font-size: 28px; font-weight: 700; line-height: 1.2; }
+.mk-3 .mk-tag, .mk-3 .mk-count { color: var(--vp-color); }
+.mk-4 .mk-tag, .mk-4 .mk-count { color: var(--rp-color); }
+.mk-4 { border-color: rgba(196, 181, 253, 0.3); }
+.mk-5 {
+  border-color: rgba(250, 214, 99, 0.5);
+  background: radial-gradient(circle at 50% 0%, rgba(250, 214, 99, 0.22), transparent 70%);
+  box-shadow: 0 0 22px rgba(250, 214, 99, 0.18);
+}
+.mk-5 .mk-tag, .mk-5 .mk-count { color: var(--tier-ultra); text-shadow: 0 0 12px rgba(250, 214, 99, 0.65); }
+/* ACE 有拿到時掃過一道光 */
+.mk-5:not(.mk-zero)::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 240, 190, 0.35), transparent);
+  animation: anShine 2.8s ease-in-out infinite;
+}
+@keyframes anShine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+/* 0 次的徽章變暗；不能直接設在徽章本身，fadeInUp 結束時會把 opacity 蓋回 1 */
+.mk-zero { border-color: var(--line); background: none; box-shadow: none; }
+.mk-zero > * { opacity: 0.35; }
+.mk-zero .mk-tag, .mk-zero .mk-count { text-shadow: none; }
+
+/* ─── 武器擊殺分布：官方擊殺圖示 + 橫條，兩欄 ─── */
+.weapon-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 32px; }
+.weapon-row {
+  display: grid;
+  grid-template-columns: 84px 76px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  animation: fadeInUp 0.4s ease both;
+}
+.weapon-icon { height: 24px; display: flex; align-items: center; }
+.weapon-icon img { max-width: 84px; max-height: 22px; object-fit: contain; opacity: 0.85; }
+.weapon-row:first-child .weapon-icon img { opacity: 1; filter: drop-shadow(0 0 6px rgba(255, 70, 85, 0.85)); }
+#weaponDist .bar-fill { background: linear-gradient(90deg, var(--accent), rgba(255, 70, 85, 0.45)); }
+
+@media (max-width: 700px) {
+  .an-hero { flex-direction: column; text-align: center; gap: 20px; padding: 24px 16px; }
+  .an-hero-info { align-items: center; }
+  .an-hero .winstreak-wrap { align-items: center; }
+  .an-hero-art { right: 50%; transform: translateX(50%); opacity: 0.18; }
+  .an-tiles, .mk-grid { grid-template-columns: repeat(2, 1fr); }
+  .weapon-list { grid-template-columns: 1fr; }
+  .weapon-row { grid-template-columns: 70px 64px 1fr auto; }
+}

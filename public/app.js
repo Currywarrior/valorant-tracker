@@ -188,7 +188,7 @@ function setupListeners() {
     const [name, tag] = raw.split('#');
     if (name && tag) {
       state.player = { name: name.trim(), tag: tag.trim() };
-      if (!$('matchesTab').classList.contains('hidden')) loadMatches();
+      if (!$('matchesTab').classList.contains('hidden') || !$('analysisTab').classList.contains('hidden')) loadMatches();
     }
   });
 }
@@ -298,6 +298,7 @@ async function handleLogout() {
   $('loginError').textContent = '';
   $('storeGrid').innerHTML = '';
   $('matchesList').innerHTML = '';
+  $('analysisMsg').classList.remove('hidden');
   $('historyList').innerHTML = '';
   $('collectionGrid').innerHTML = '';
   $('collectionCount').textContent = '';
@@ -327,7 +328,7 @@ function switchTab(tab) {
   void tabEl.offsetWidth; // 強制 reflow，讓動畫重新觸發
   tabEl.classList.add('tab-animate');
 
-  if (tab === 'matches' && state.player.name) loadMatches();
+  if ((tab === 'matches' || tab === 'analysis') && state.player.name) loadMatches();
   if (tab === 'history') loadHistory();
   if (tab === 'collection') loadCollection();
   if (tab === 'bundles') loadBundleCatalog();
@@ -1193,6 +1194,8 @@ async function loadMatches() {
   $('matchStats').classList.add('hidden');
   $('matchCharts').classList.add('hidden');
   $('matchesList').innerHTML = '<div class="state-msg">對戰紀錄載入中...</div>';
+  $('analysisMsg').textContent = '對戰紀錄載入中...';
+  $('analysisMsg').classList.remove('hidden');
 
   const data = await apiFetch(`/api/matches?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`);
 
@@ -1204,12 +1207,14 @@ async function loadMatches() {
       MATCHES_FETCH_FAILED: '對戰紀錄取得失敗，請稍後再試'
     };
     $('matchesList').innerHTML = `<div class="error-state">${msgs[data.error] || data.message || '未知錯誤'}</div>`;
+    $('analysisMsg').textContent = msgs[data.error] || data.message || '未知錯誤';
     return;
   }
 
   const matches = (data.data || []).filter(m => m.metadata?.mode?.toLowerCase() !== 'deathmatch');
   if (matches.length === 0) {
     $('matchesList').innerHTML = `<div class="state-msg">找不到 ${name}#${tag} 的近期對戰紀錄</div>`;
+    $('analysisMsg').textContent = `找不到 ${name}#${tag} 的近期對戰紀錄`;
     return;
   }
 
@@ -1237,7 +1242,11 @@ function renderMatchStats(matches, playerName, playerTag) {
   let validCount = 0;
   let totalScore = 0, totalRounds = 0;
   let totalHead = 0, totalBody = 0, totalLeg = 0;
-  const agentStats = {};  // agent -> { games, wins, icon }
+  let draws = 0, totalDamage = 0, firstKills = 0, firstDeaths = 0;
+  const multi = { 2: 0, 3: 0, 4: 0, 5: 0 };   // 單回合殺 2/3/4/5 人的次數
+  const sides = { atk: { rounds: 0, wins: 0 }, def: { rounds: 0, wins: 0 } };
+  const weaponStats = {};  // 武器 -> { kills, icon }
+  const agentStats = {};  // agent -> { games, wins, kills, deaths, icon, bust }
   const mapStats = {};    // map   -> { games, wins }
   const recentResults = []; // 最多 15 場
   const kdSeries = [];      // 最近場次的 K/D，用於走勢折線
@@ -1258,6 +1267,7 @@ function renderMatchStats(matches, playerName, playerTag) {
     const won = teams[myTeam]?.has_won;
 
     if (won) wins++;
+    if (isDraw) draws++;
     const { kills = 0, deaths = 0, assists = 0, score = 0,
             headshots = 0, bodyshots = 0, legshots = 0 } = me.stats || {};
     totalKills += kills;
@@ -1268,13 +1278,48 @@ function renderMatchStats(matches, playerName, playerTag) {
     totalBody += bodyshots;
     totalLeg += legshots;
     totalRounds += (teams.blue?.rounds_won || 0) + (teams.red?.rounds_won || 0);
+    totalDamage += me.damage_made || 0;
     validCount++;
+
+    // 逐回合：首殺首死、多殺、攻守勝率
+    const killsByRound = {};
+    (match.kills || []).forEach(k => (killsByRound[k.round] ||= []).push(k));
+    const hasSides = ['competitive', 'unrated', 'premier'].includes((match.metadata?.mode || '').toLowerCase());
+    (match.rounds || []).forEach((r, i) => {
+      const rk = killsByRound[i] || [];
+      if (rk.length) {
+        const first = rk.reduce((a, b) => b.kill_time_in_round < a.kill_time_in_round ? b : a);
+        if (first.killer_puuid === me.puuid) firstKills++;
+        if (first.victim_puuid === me.puuid) firstDeaths++;
+      }
+      const myKills = rk.filter(k => k.killer_puuid === me.puuid).length;
+      if (myKills >= 2) multi[Math.min(myKills, 5)]++;
+      // 紅隊上半場（前 12 回合）進攻、下半場換邊；延長賽每回合換邊，不算
+      if (hasSides && i < 24) {
+        const side = (i < 12) === (myTeam === 'red') ? 'atk' : 'def';
+        sides[side].rounds++;
+        if (r.winning_team?.toLowerCase() === myTeam) sides[side].wins++;
+      }
+    });
+
+    // 武器擊殺（沒有武器名稱的是技能、大招等）
+    (match.kills || []).forEach(k => {
+      if (k.killer_puuid !== me.puuid) return;
+      const wn = k.damage_weapon_name || '技能／其他';
+      const w = weaponStats[wn] || (weaponStats[wn] = { kills: 0, icon: k.damage_weapon_assets?.killfeed_icon || '' });
+      w.kills++;
+    });
 
     // 角色使用分布（場次 + 勝場 + icon，順便用來找最常用 agent）
     const agentName = me.character || 'Unknown';
-    const ag = agentStats[agentName] || (agentStats[agentName] = { games: 0, wins: 0, icon: me.assets?.agent?.small || '' });
+    const ag = agentStats[agentName] || (agentStats[agentName] = {
+      games: 0, wins: 0, kills: 0, deaths: 0,
+      icon: me.assets?.agent?.small || '', bust: me.assets?.agent?.bust || me.assets?.agent?.full || ''
+    });
     ag.games++;
     if (won) ag.wins++;
+    ag.kills += kills;
+    ag.deaths += deaths;
 
     // 地圖勝率
     const mapName = match.metadata?.map || 'Unknown';
@@ -1297,6 +1342,14 @@ function renderMatchStats(matches, playerName, playerTag) {
   // 勝率（亂碼效果）
   const winrate = Math.round((wins / validCount) * 100);
   animateScramble($('statWinrate'), `${winrate}%`);
+  $('anRecord').textContent = `${validCount} 場 · ${wins} 勝 ${validCount - wins - draws} 敗${draws ? ` ${draws} 平` : ''}`;
+  // 勝率環：先歸零再在下一幀設定，讓 transition 每次都從 0 畫到目標
+  const ring = $('anRingFill'), C = 2 * Math.PI * 52;
+  ring.style.strokeDashoffset = C;
+  requestAnimationFrame(() => requestAnimationFrame(() => { ring.style.strokeDashoffset = C * (1 - winrate / 100); }));
+
+  // ADR = 造成傷害總和 ÷ 回合總數
+  animateScramble($('statADR'), `${totalRounds > 0 ? Math.round(totalDamage / totalRounds) : 0}`);
 
   // 平均 K/D（亂碼效果）
   const avgKD = totalDeaths > 0
@@ -1317,6 +1370,10 @@ function renderMatchStats(matches, playerName, playerTag) {
   const topAgent = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games)[0];
   if (topAgent) {
     $('statTopAgent').textContent = topAgent[0];
+    if (topAgent[1].bust) {
+      $('anHeroArt').src = topAgent[1].bust;
+      $('anHeroArt').style.display = '';
+    }
     if (topAgent[1].icon) {
       $('statTopAgentIcon').src = topAgent[1].icon;
       $('statTopAgentIcon').style.display = '';
@@ -1334,11 +1391,16 @@ function renderMatchStats(matches, playerName, playerTag) {
   });
 
   $('matchStats').classList.remove('hidden');
+  $('analysisMsg').classList.add('hidden');
 
   // K/D 走勢折線 + 角色使用分布 + 地圖勝率橫條圖
   renderKdaTrend(kdSeries);
   renderAgentDist(agentStats);
   renderMapWinrate(mapStats);
+  renderSideWinrate(sides);
+  renderOpeningDuels(firstKills, firstDeaths, totalRounds);
+  renderMultiKills(multi);
+  renderWeaponDist(weaponStats);
   $('matchCharts').classList.remove('hidden');
 }
 
@@ -1375,6 +1437,64 @@ function renderKdaTrend(series) {
     <div class="kda-axis"><span>較舊</span><span>虛線 = K/D 1.0</span><span>最新</span></div>`;
 }
 
+// 攻守勝率：兩條橫條，中間細線是 50%
+function renderSideWinrate(sides) {
+  const row = (label, s, cls) => {
+    const wr = s.rounds ? Math.round((s.wins / s.rounds) * 100) : 0;
+    return `
+      <div class="side-row ${cls}">
+        <div class="side-head"><span class="side-label">${label}</span><span class="side-val">${s.rounds ? `${wr}%` : '--'}</span></div>
+        <div class="side-track"><div class="side-fill" style="width:${wr}%"></div><div class="side-mid"></div></div>
+        <div class="bar-meta">${s.wins} 勝 / ${s.rounds} 回合</div>
+      </div>`;
+  };
+  $('sideWinrate').innerHTML = row('進攻', sides.atk, 'atk') + row('防守', sides.def, 'def')
+    + '<div class="an-note">只算排位與一般模式的正規回合，延長賽不算</div>';
+}
+
+// 首殺 vs 首死：拔河條，左綠右紅，綠色長度 = 開局對槍勝率
+function renderOpeningDuels(fk, fd, rounds) {
+  const total = fk + fd;
+  const pct = total ? Math.round((fk / total) * 100) : 50;
+  $('openingDuels').innerHTML = `
+    <div class="duel-nums">
+      <div class="duel-side fk"><div class="duel-val">${fk}</div><div class="stat-label">首殺</div></div>
+      <div class="duel-pct">${total ? `${pct}%` : '--'}<span>開局對槍勝率</span></div>
+      <div class="duel-side fd"><div class="duel-val">${fd}</div><div class="stat-label">首死</div></div>
+    </div>
+    <div class="duel-bar"><div class="duel-fk" style="width:${pct}%"></div><div class="duel-fd"></div></div>
+    <div class="an-note">每回合第一個倒下的人；你參與了 ${rounds ? Math.round((total / rounds) * 100) : 0}% 回合的開局對槍</div>`;
+}
+
+// 多殺徽章：2K → ACE 顏色逐級升高，ACE 金色
+function renderMultiKills(multi) {
+  const labels = { 2: '雙殺', 3: '三殺', 4: '四殺', 5: '五殺' };
+  $('multiKills').innerHTML = [2, 3, 4, 5].map((n, i) => `
+    <div class="mk-badge mk-${n}${multi[n] ? '' : ' mk-zero'}" style="animation-delay:${i * 60}ms">
+      <div class="mk-tag">${n === 5 ? 'ACE' : `${n}K`}</div>
+      <div class="mk-count">${multi[n]}</div>
+      <div class="stat-label">${labels[n]}</div>
+    </div>`).join('');
+}
+
+// 武器擊殺分布：擊殺圖示 + 橫條，最多 8 把
+function renderWeaponDist(weaponStats) {
+  const arr = Object.entries(weaponStats).sort((a, b) => b[1].kills - a[1].kills);
+  if (arr.length === 0) {
+    $('weaponDist').innerHTML = '<div class="kda-trend-empty">沒有擊殺紀錄</div>';
+    return;
+  }
+  const total = arr.reduce((n, [, w]) => n + w.kills, 0);
+  const max = arr[0][1].kills;
+  $('weaponDist').innerHTML = arr.slice(0, 8).map(([name, w], i) => `
+    <div class="weapon-row" style="animation-delay:${i * 50}ms">
+      <div class="weapon-icon">${w.icon ? `<img src="${w.icon}" alt="">` : ''}</div>
+      <div class="bar-name">${name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(w.kills / max) * 100}%"></div></div>
+      <div class="bar-meta">${w.kills} 殺 · ${Math.round((w.kills / total) * 100)}%</div>
+    </div>`).join('');
+}
+
 // 角色使用分布橫條（依場次排序，最多 6 個；bar 長度 = 相對最高場次）
 function renderAgentDist(agentStats) {
   const el = $('agentDist');
@@ -1392,7 +1512,7 @@ function renderAgentDist(agentStats) {
         <span class="bar-name">${name}</span>
       </div>
       <div class="bar-track"><div class="bar-fill" style="width:${(s.games / max) * 100}%"></div></div>
-      <div class="bar-meta">${s.games} 場 · 勝率 ${wr}%</div>`;
+      <div class="bar-meta">${s.games} 場 · 勝率 ${wr}% · K/D ${(s.deaths > 0 ? s.kills / s.deaths : s.kills).toFixed(2)}</div>`;
     el.appendChild(row);
   });
 }
