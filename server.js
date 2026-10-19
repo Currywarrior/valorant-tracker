@@ -7,6 +7,7 @@ const { wrapper } = require('axios-cookiejar-support');
 const { CookieJar } = require('tough-cookie');
 const fs = require('fs');
 const path = require('path');
+const matchStore = require('./match-store');
 
 const app = express();
 app.set('trust proxy', 1); // 部署在 Nginx / Railway / Render 後面時正確取得 IP
@@ -1322,12 +1323,62 @@ app.get('/api/matches', async (req, res) => {
       `https://api.henrikdev.xyz/valorant/v3/matches/${toShard(riot.region)}/${encodeURIComponent(name)}/${encodeURIComponent(tag)}?size=${size}`,
       { headers: { Authorization: HENRIK_API_KEY }, timeout: 10000 }
     );
-    res.json(r.data);
+    // 順便算出每場摘要給分析頁，有接資料庫就存起來累積
+    const matches = r.data.data || [];
+    const target = matches.flatMap(m => m.players?.all_players || []).find(
+      p => p.name?.toLowerCase() === name.toLowerCase() && p.tag?.toLowerCase() === tag.toLowerCase()
+    );
+    const summaries = target ? matches.map(m => matchStore.summarize(m, target.puuid)).filter(Boolean) : [];
+    if (target) {
+      matchStore.saveSummaries(summaries, { puuid: target.puuid, name: target.name, tag: target.tag, shard: toShard(riot.region) })
+        .catch(e => console.error('[MatchStore] 存檔失敗:', e.message));
+    }
+    res.json({ ...r.data, puuid: target?.puuid || null, summaries });
   } catch (err) {
     const status = err.response?.status;
     console.error('[Matches] Error:', status, err.response?.data || err.message);
     if (status === 404) return res.status(404).json({ error: 'PLAYER_NOT_FOUND' });
     res.status(500).json({ error: 'MATCHES_FETCH_FAILED' });
+  }
+});
+
+// ─── GET /api/analysis（資料庫裡累積的對戰摘要） ───
+app.get('/api/analysis', async (req, res) => {
+  if (!getRiot(req).region) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
+  if (!req.query.puuid) return res.status(400).json({ error: 'MISSING_PARAMS' });
+  try {
+    res.json({ stored: matchStore.isEnabled(), summaries: await matchStore.loadSummaries(req.query.puuid) });
+  } catch (err) {
+    console.error('[Analysis] Error:', err.message);
+    res.json({ stored: false, summaries: [] });   // 資料庫掛了就退回只看這次抓到的場次
+  }
+});
+
+// ─── GET /api/cron/collect?key=CRON_SECRET（定時幫登記過的玩家抓新場次） ───
+// cron-job.org 每 10 分鐘戳一次讓 Render 不休眠；真的去 Henrik 抓每 3 小時一輪就好
+const COLLECT_INTERVAL = 3 * 60 * 60 * 1000;
+let lastCollect = 0;
+app.get('/api/cron/collect', async (req, res) => {
+  if (!process.env.CRON_SECRET || req.query.key !== process.env.CRON_SECRET) return res.status(403).json({ error: 'FORBIDDEN' });
+  if (!matchStore.isEnabled() || !HENRIK_API_KEY) return res.json({ skipped: 'NO_DB_OR_KEY' });
+  if (Date.now() - lastCollect < COLLECT_INTERVAL) return res.json({ skipped: 'TOO_SOON' });
+  lastCollect = Date.now();
+  const players = await matchStore.listPlayers();
+  res.json({ started: players.length });   // 先回應，cron-job.org 等太久會判逾時
+
+  for (const p of players) {
+    try {
+      const r = await axios.get(
+        `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/${p.shard}/${p._id}?size=10`,
+        { headers: { Authorization: HENRIK_API_KEY }, timeout: 20000 }
+      );
+      const summaries = (r.data.data || []).map(m => matchStore.summarize(m, p._id)).filter(Boolean);
+      await matchStore.saveSummaries(summaries);
+      console.log(`[Collect] ${p.name}#${p.tag}: ${summaries.length} 場`);
+    } catch (err) {
+      console.error(`[Collect] ${p.name}#${p.tag} 失敗:`, err.response?.status || err.message);
+    }
+    await new Promise(r => setTimeout(r, 3000));   // Henrik 免費金鑰每分鐘 30 次，慢慢來
   }
 });
 

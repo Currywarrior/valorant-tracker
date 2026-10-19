@@ -1229,12 +1229,28 @@ async function loadMatches() {
     }
   });
 
-  // 計算並顯示統計摘要（需要在 buildMatchCard 之後，因為 matches 資料完整才能統計）
-  renderMatchStats(matches, name, tag);
+  // 分析頁：後端已把每場算成摘要，再併上資料庫累積的舊場次
+  loadAnalysis(data);
 }
 
-// 計算統計數據並渲染到 #matchStats
-function renderMatchStats(matches, playerName, playerTag) {
+// 這次抓到的場次 + 資料庫累積的場次，用 matchId 去重後統計（新 → 舊）
+async function loadAnalysis(data) {
+  const live = data.summaries || [];
+  const stored = data.puuid
+    ? ((await apiFetch(`/api/analysis?puuid=${encodeURIComponent(data.puuid)}`)).summaries || [])
+    : [];
+  const byId = new Map();
+  [...stored, ...live].forEach(s => byId.set(s.matchId, s));
+  const all = [...byId.values()].sort((a, b) => b.startedAt - a.startedAt);
+  const oldest = all[all.length - 1];
+  $('analysisHint').textContent = stored.length && oldest?.startedAt
+    ? `累積 ${all.length} 場（${new Date(oldest.startedAt * 1000).toLocaleDateString('zh-TW')} 起，不含死鬥）`
+    : `最近 ${all.length} 場（不含死鬥）`;
+  renderMatchStats(all);
+}
+
+// 計算統計數據並渲染到 #matchStats；summaries 由後端 match-store.js 的 summarize() 產生
+function renderMatchStats(summaries) {
   let wins = 0;
   let totalKills = 0;
   let totalDeaths = 0;
@@ -1251,89 +1267,50 @@ function renderMatchStats(matches, playerName, playerTag) {
   const recentResults = []; // 最多 15 場
   const kdSeries = [];      // 最近場次的 K/D，用於走勢折線
 
-  matches.forEach(match => {
-    const allPlayers = match.players?.all_players || [];
-    const me = allPlayers.find(
-      p => p.name?.toLowerCase() === playerName.toLowerCase()
-        && p.tag?.toLowerCase() === playerTag.toLowerCase()
-    );
-    if (!me) return;
-
-    const myTeam = (me.team || 'blue').toLowerCase();
-    const teams = match.teams || {};
-    const blueWon = teams.blue?.has_won;
-    const redWon  = teams.red?.has_won;
-    const isDraw  = !blueWon && !redWon;
-    const won = teams[myTeam]?.has_won;
-
+  summaries.forEach(m => {
+    const won = m.result === 'win';
     if (won) wins++;
-    if (isDraw) draws++;
-    const { kills = 0, deaths = 0, assists = 0, score = 0,
-            headshots = 0, bodyshots = 0, legshots = 0 } = me.stats || {};
-    totalKills += kills;
-    totalDeaths += deaths;
-    totalAssists += assists;
-    totalScore += score;
-    totalHead += headshots;
-    totalBody += bodyshots;
-    totalLeg += legshots;
-    totalRounds += (teams.blue?.rounds_won || 0) + (teams.red?.rounds_won || 0);
-    totalDamage += me.damage_made || 0;
+    if (m.result === 'draw') draws++;
+    totalKills += m.kills;
+    totalDeaths += m.deaths;
+    totalAssists += m.assists;
+    totalScore += m.score;
+    totalHead += m.headshots;
+    totalBody += m.bodyshots;
+    totalLeg += m.legshots;
+    totalRounds += m.rounds;
+    totalDamage += m.damage;
+    firstKills += m.firstKills;
+    firstDeaths += m.firstDeaths;
+    [2, 3, 4, 5].forEach(n => { multi[n] += m.multi[n] || 0; });
+    ['atk', 'def'].forEach(k => {
+      sides[k].rounds += m.sides[k].rounds;
+      sides[k].wins += m.sides[k].wins;
+    });
+    m.weapons.forEach(w => {
+      const ws = weaponStats[w.name] || (weaponStats[w.name] = { kills: 0, icon: w.icon });
+      ws.kills += w.kills;
+    });
     validCount++;
 
-    // 逐回合：首殺首死、多殺、攻守勝率
-    const killsByRound = {};
-    (match.kills || []).forEach(k => (killsByRound[k.round] ||= []).push(k));
-    const hasSides = ['competitive', 'unrated', 'premier'].includes((match.metadata?.mode || '').toLowerCase());
-    (match.rounds || []).forEach((r, i) => {
-      const rk = killsByRound[i] || [];
-      if (rk.length) {
-        const first = rk.reduce((a, b) => b.kill_time_in_round < a.kill_time_in_round ? b : a);
-        if (first.killer_puuid === me.puuid) firstKills++;
-        if (first.victim_puuid === me.puuid) firstDeaths++;
-      }
-      const myKills = rk.filter(k => k.killer_puuid === me.puuid).length;
-      if (myKills >= 2) multi[Math.min(myKills, 5)]++;
-      // 紅隊上半場（前 12 回合）進攻、下半場換邊；延長賽每回合換邊，不算
-      if (hasSides && i < 24) {
-        const side = (i < 12) === (myTeam === 'red') ? 'atk' : 'def';
-        sides[side].rounds++;
-        if (r.winning_team?.toLowerCase() === myTeam) sides[side].wins++;
-      }
-    });
-
-    // 武器擊殺（沒有武器名稱的是技能、大招等）
-    (match.kills || []).forEach(k => {
-      if (k.killer_puuid !== me.puuid) return;
-      const wn = k.damage_weapon_name || '技能／其他';
-      const w = weaponStats[wn] || (weaponStats[wn] = { kills: 0, icon: k.damage_weapon_assets?.killfeed_icon || '' });
-      w.kills++;
-    });
-
-    // 角色使用分布（場次 + 勝場 + icon，順便用來找最常用 agent）
-    const agentName = me.character || 'Unknown';
-    const ag = agentStats[agentName] || (agentStats[agentName] = {
-      games: 0, wins: 0, kills: 0, deaths: 0,
-      icon: me.assets?.agent?.small || '', bust: me.assets?.agent?.bust || me.assets?.agent?.full || ''
+    // 角色使用分布（場次 + 勝場 + K/D + icon，順便用來找最常用 agent）
+    const ag = agentStats[m.agent] || (agentStats[m.agent] = {
+      games: 0, wins: 0, kills: 0, deaths: 0, icon: m.agentIcon, bust: m.agentBust
     });
     ag.games++;
     if (won) ag.wins++;
-    ag.kills += kills;
-    ag.deaths += deaths;
+    ag.kills += m.kills;
+    ag.deaths += m.deaths;
 
     // 地圖勝率
-    const mapName = match.metadata?.map || 'Unknown';
-    const mp = mapStats[mapName] || (mapStats[mapName] = { games: 0, wins: 0 });
+    const mp = mapStats[m.map] || (mapStats[m.map] = { games: 0, wins: 0 });
     mp.games++;
     if (won) mp.wins++;
 
-    // 勝敗走勢（最多 15 場，最新在陣列後面，渲染時最新在右）
+    // 勝敗走勢（最多 15 場，最新在陣列前面）
     if (recentResults.length < 15) {
-      recentResults.push({
-        result: isDraw ? 'draw' : (won ? 'win' : 'loss'),
-        agentIcon: me.assets?.agent?.small || ''
-      });
-      kdSeries.push(deaths > 0 ? kills / deaths : kills);
+      recentResults.push({ result: m.result, agentIcon: m.agentIcon });
+      kdSeries.push(m.deaths > 0 ? m.kills / m.deaths : m.kills);
     }
   });
 

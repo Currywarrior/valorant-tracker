@@ -235,6 +235,8 @@ npm start
 | `HENRIK_API_KEY` | 是 | 對戰紀錄／MMR 用。從 [developers.henrikdev.xyz](https://developers.henrikdev.xyz/) 免費申請 |
 | `SESSION_SECRET` | 是 | 隨機字串，用於加密 session。產生方式：`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `GEMINI_API_KEY` | 否 | AI 教練點評用。未設定時教練功能自動降級隱藏，其他功能完全不受影響 |
+| `MONGODB_URI` | 否 | MongoDB Atlas 連線字串。設定後每場對戰的摘要（約 1.5KB）會存起來，分析頁可累積超過 10 場；未設定則只看最近 10 場 |
+| `CRON_SECRET` | 否 | 定時抓取 `/api/cron/collect?key=...` 的密鑰。搭配 cron-job.org 每 10 分鐘呼叫，後端每 3 小時幫登記過的玩家抓一次新場次，也讓 Render 不休眠 |
 | `DATA_DIR` | 否 | 持久化開關。設為掛載 Volume 的路徑（如 `/data`）後，session 與 store-history 改寫入該目錄、重啟不消失；未設定則用記憶體 |
 | `NODE_ENV` | 否 | 設為 `production` 時啟用 HTTPS-only cookie |
 | `PORT` | 否 | 伺服器 port，預設 3000 |
