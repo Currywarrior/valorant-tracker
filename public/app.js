@@ -276,6 +276,7 @@ function onLoginSuccess(data) {
     const parts = data.gameName.split('#');
     $('profileName').textContent = parts[0] || '--';
     $('profileTag').textContent = parts[1] ? `#${parts[1]}` : '';
+    if (parts[1]) loadAccountCard(parts[0], parts[1]);
   }
 
   // 並行載入商店 + profile + 擁有物品清單
@@ -336,6 +337,22 @@ function switchTab(tab) {
 
 // ─── 玩家 Profile（rank + wallet） ───
 
+// 玩家卡圖與等級：寬版圖當玩家列背景、方形圖當頭像；失敗就維持沒有卡圖的樣子
+async function loadAccountCard(name, tag) {
+  const d = await apiFetch(`/api/account?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`).catch(() => null);
+  if (!d || d.error) return;
+  // 寬版圖原尺寸只有 452×128：一層模糊放大當氛圍，一層原尺寸清楚地貼在右邊
+  if (d.cardWide) ['profileBanner', 'profileBannerArt'].forEach(id => { $(id).style.backgroundImage = `url('${d.cardWide}')`; });
+  if (d.cardSmall) {
+    $('profileCard').src = d.cardSmall;
+    $('profileCard').style.display = '';
+  }
+  if (d.level != null) {
+    $('profileLevel').textContent = d.level;
+    $('profileLevel').classList.remove('hidden');
+  }
+}
+
 async function loadProfile() {
   try {
     // 並行抓 rank 和 wallet，都失敗也不影響其他功能
@@ -352,6 +369,8 @@ async function loadProfile() {
 
       tierNameEl.textContent = rankData.tierName || 'Unrated';
       tierRREl.textContent = `${rankData.rr ?? '--'} RR`;
+      // 神話以上 RR 會超過 100，進度條封頂
+      $('profileRRBar').style.width = `${Math.min(100, rankData.rr || 0)}%`;
       state.currentTier = rankData.tier; // 給段位階梯彈窗標註目前段位用
 
       // 設定段位顏色（用 data-tier 屬性對應 CSS）
@@ -1378,6 +1397,15 @@ function renderMatchStats(summaries) {
   renderOpeningDuels(firstKills, firstDeaths, totalRounds);
   renderMultiKills(multi);
   renderWeaponDist(weaponStats);
+  renderInsights({ sides, mapStats, firstKills, firstDeaths });
+  renderHighlights(summaries, agentStats, weaponStats);
+  renderStyleRadar({
+    hsPct,
+    adr: totalRounds > 0 ? Math.round(totalDamage / totalRounds) : 0,
+    fkRate: totalRounds > 0 ? firstKills / totalRounds : 0,
+    survival: totalRounds > 0 ? 1 - totalDeaths / totalRounds : 0,
+    multiRate: totalRounds > 0 ? (multi[2] + multi[3] + multi[4] + multi[5]) / totalRounds : 0,
+  });
   $('matchCharts').classList.remove('hidden');
 }
 
@@ -1472,44 +1500,134 @@ function renderWeaponDist(weaponStats) {
     </div>`).join('');
 }
 
-// 角色使用分布橫條（依場次排序，最多 6 個；bar 長度 = 相對最高場次）
+const kdOf = s => (s.deaths > 0 ? s.kills / s.deaths : s.kills);
+const wrOf = s => Math.round((s.wins / s.games) * 100);
+
+// 特務卡：立繪靠右淡出，勝率大字（過半綠、未過半紅），依場次排序最多 8 個
 function renderAgentDist(agentStats) {
-  const el = $('agentDist');
-  el.innerHTML = '';
-  const arr = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games).slice(0, 6);
-  const max = arr[0]?.[1].games || 1;
-  arr.forEach(([name, s], i) => {
-    const wr = Math.round((s.wins / s.games) * 100);
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.style.animationDelay = `${i * 50}ms`;
-    row.innerHTML = `
-      <div class="bar-head">
-        ${s.icon ? `<img class="bar-icon" src="${s.icon}" alt="">` : ''}
-        <span class="bar-name">${name}</span>
+  const arr = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games).slice(0, 8);
+  $('agentDist').innerHTML = arr.map(([name, s], i) => `
+    <div class="agent-card" style="animation-delay:${i * 60}ms">
+      ${s.bust ? `<img class="agent-card-art" src="${s.bust}" alt="">` : ''}
+      <div class="agent-card-body">
+        <div class="agent-card-name">${name}</div>
+        <div class="agent-card-wr ${wrOf(s) >= 50 ? 'up' : 'down'}">${wrOf(s)}%</div>
+        <div class="stat-label">勝率 · ${s.games} 場</div>
+        <div class="agent-card-kd">K/D <b>${kdOf(s).toFixed(2)}</b></div>
       </div>
-      <div class="bar-track"><div class="bar-fill" style="width:${(s.games / max) * 100}%"></div></div>
-      <div class="bar-meta">${s.games} 場 · 勝率 ${wr}% · K/D ${(s.deaths > 0 ? s.kills / s.deaths : s.kills).toFixed(2)}</div>`;
-    el.appendChild(row);
-  });
+    </div>`).join('');
 }
 
-// 地圖勝率橫條（依場次排序，最多 7 個；bar 長度 = 勝率，勝率過半綠、未過半紅）
+// 地圖卡：官方地圖大圖當背景，底部細條 = 勝率，依場次排序
 function renderMapWinrate(mapStats) {
-  const el = $('mapWinrate');
-  el.innerHTML = '';
-  const arr = Object.entries(mapStats).sort((a, b) => b[1].games - a[1].games).slice(0, 7);
-  arr.forEach(([name, s], i) => {
-    const wr = Math.round((s.wins / s.games) * 100);
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.style.animationDelay = `${i * 50}ms`;
-    row.innerHTML = `
-      <div class="bar-head"><span class="bar-name">${name}</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${wr}%;background:var(${wr >= 50 ? '--win' : '--loss'})"></div></div>
-      <div class="bar-meta">${s.wins}勝 ${s.games - s.wins}敗 · ${wr}%</div>`;
-    el.appendChild(row);
-  });
+  const arr = Object.entries(mapStats).sort((a, b) => b[1].games - a[1].games);
+  $('mapWinrate').innerHTML = arr.map(([name, s], i) => `
+    <div class="map-card" style="animation-delay:${i * 60}ms${state.maps[name] ? `;background-image:url('${state.maps[name]}')` : ''}">
+      <div class="map-card-shade"></div>
+      <div class="map-card-name">${name}</div>
+      <div class="map-card-wr ${wrOf(s) >= 50 ? 'up' : 'down'}">${wrOf(s)}%</div>
+      <div class="map-card-meta">${s.wins} 勝 ${s.games - s.wins} 敗</div>
+      <div class="map-card-bar"><i style="width:${wrOf(s)}%"></i></div>
+    </div>`).join('');
+}
+
+// 主視覺底下的結論：攻守差距、主場 / 苦手圖、開局對槍，最多三句
+function renderInsights({ sides, mapStats, firstKills, firstDeaths }) {
+  const lines = [];
+  const wr = s => (s.rounds ? Math.round((s.wins / s.rounds) * 100) : 0);
+  if (sides.atk.rounds >= 10 && sides.def.rounds >= 10) {
+    const diff = wr(sides.atk) - wr(sides.def);
+    lines.push(Math.abs(diff) >= 5
+      ? { tone: diff > 0 ? 'atk' : 'def', text: `${diff > 0 ? '進攻' : '防守'}比${diff > 0 ? '防守' : '進攻'}強 ${Math.abs(diff)}%` }
+      : { tone: 'neutral', text: '攻守表現平均，沒有明顯弱邊' });
+  }
+  const maps = Object.entries(mapStats).filter(([, s]) => s.games >= 2).sort((a, b) => wrOf(b[1]) - wrOf(a[1]));
+  if (maps.length >= 2) {
+    const [best, worst] = [maps[0], maps[maps.length - 1]];
+    if (wrOf(best[1]) > wrOf(worst[1])) {
+      lines.push({ tone: 'up', text: `${best[0]} 是你的主場（勝率 ${wrOf(best[1])}%）` });
+      lines.push({ tone: 'down', text: `${worst[0]} 是苦手圖（勝率 ${wrOf(worst[1])}%）` });
+    }
+  }
+  const duels = firstKills + firstDeaths;
+  if (duels >= 10) {
+    const pct = Math.round((firstKills / duels) * 100);
+    if (pct >= 55) lines.push({ tone: 'up', text: `開局對槍贏 ${pct}%，適合打先手` });
+    else if (pct <= 45) lines.push({ tone: 'down', text: `開局對槍只贏 ${pct}%，可以少當第一個衝的` });
+  }
+  $('anInsights').innerHTML = lines.slice(0, 3).map(l => `<div class="an-insight ${l.tone}">${l.text}</div>`).join('');
+}
+
+// 亮點三連卡：最佳一場（ACS 最高）/ 招牌特務 / 招牌槍
+function renderHighlights(summaries, agentStats, weaponStats) {
+  const acsOf = m => (m.rounds ? Math.round(m.score / m.rounds) : 0);
+  const mvp = summaries.reduce((a, b) => (acsOf(b) > acsOf(a) ? b : a));
+  const [agentName, ag] = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games)[0];
+  const gun = Object.entries(weaponStats).filter(([n]) => n !== '技能／其他').sort((a, b) => b[1].kills - a[1].kills)[0];
+  const totalKills = Object.values(weaponStats).reduce((n, w) => n + w.kills, 0);
+  const date = new Date(mvp.startedAt * 1000);
+  $('anHighlights').innerHTML = `
+    <div class="hl-card hl-mvp"${state.maps[mvp.map] ? ` style="background-image:url('${state.maps[mvp.map]}')"` : ''}>
+      <div class="hl-shade"></div>
+      <div class="hl-label">最佳一場</div>
+      <div class="hl-big">${acsOf(mvp)} <span>ACS</span></div>
+      <div class="hl-sub">
+        ${mvp.agentIcon ? `<img src="${mvp.agentIcon}" alt="">` : ''}
+        ${mvp.map} · ${mvp.kills}/${mvp.deaths}/${mvp.assists} · <b class="${mvp.result === 'win' ? 'up' : 'down'}">${mvp.result === 'win' ? '勝' : mvp.result === 'loss' ? '敗' : '平'}</b>
+      </div>
+      <div class="hl-foot">${date.getMonth() + 1}/${date.getDate()} ${mvp.mode}</div>
+    </div>
+    <div class="hl-card hl-agent">
+      ${ag.bust ? `<img class="hl-agent-art" src="${ag.bust}" alt="">` : ''}
+      <div class="hl-label">招牌特務</div>
+      <div class="hl-big">${agentName}</div>
+      <div class="hl-sub">${ag.games} 場 · 勝率 <b class="${wrOf(ag) >= 50 ? 'up' : 'down'}">${wrOf(ag)}%</b> · K/D ${kdOf(ag).toFixed(2)}</div>
+    </div>
+    <div class="hl-card hl-gun">
+      <div class="hl-label">招牌槍</div>
+      ${gun ? `
+        <img class="hl-gun-art" src="${gun[1].icon.replace('killstreamicon.png', 'displayicon.png')}" alt="">
+        <div class="hl-big">${gun[0]}</div>
+        <div class="hl-sub">${gun[1].kills} 殺 · 佔你全部擊殺 <b>${Math.round((gun[1].kills / totalKills) * 100)}%</b></div>`
+        : '<div class="hl-sub">還沒有用槍的擊殺紀錄</div>'}
+    </div>`;
+}
+
+// 玩家風格雷達：五軸各自除以「滿格標準」，滿格約是高端玩家的水準；稱號取最突出的那一軸
+function renderStyleRadar({ hsPct, adr, fkRate, survival, multiRate }) {
+  const axes = [
+    { label: '槍法', val: `爆頭 ${hsPct}%`, v: hsPct / 30, title: '神射手' },
+    { label: '輸出', val: `ADR ${adr}`, v: adr / 170, title: '火力核心' },
+    { label: '開局', val: `首殺率 ${Math.round(fkRate * 100)}%`, v: fkRate / 0.15, title: '突破手' },
+    { label: '生存', val: `存活率 ${Math.round(survival * 100)}%`, v: survival / 0.45, title: '穩健老手' },
+    { label: '收割', val: `多殺率 ${Math.round(multiRate * 100)}%`, v: multiRate / 0.2, title: '收割者' },
+  ].map(a => ({ ...a, v: Math.max(0.04, Math.min(1, a.v)) }));
+  const S = 300, C = S / 2, R = 96;
+  const pt = (i, r) => {
+    const ang = -Math.PI / 2 + (i * 2 * Math.PI) / axes.length;
+    return [C + r * Math.cos(ang), C + r * Math.sin(ang)];
+  };
+  const poly = r => axes.map((_, i) => pt(i, typeof r === 'function' ? r(i) : r).map(n => n.toFixed(1)).join(',')).join(' ');
+  const grid = [0.25, 0.5, 0.75, 1].map(f => `<polygon class="rd-grid" points="${poly(R * f)}"/>`).join('');
+  const spokes = axes.map((_, i) => { const [x, y] = pt(i, R); return `<line class="rd-spoke" x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`; }).join('');
+  const dots = axes.map((a, i) => { const [x, y] = pt(i, R * a.v); return `<circle class="rd-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/>`; }).join('');
+  const labels = axes.map((a, i) => {
+    const [x, y] = pt(i, R + 30);
+    return `<text class="rd-label" x="${x.toFixed(1)}" y="${(y - 4).toFixed(1)}">${a.label}</text>
+            <text class="rd-val" x="${x.toFixed(1)}" y="${(y + 12).toFixed(1)}">${a.val}</text>`;
+  }).join('');
+  const top = axes.reduce((a, b) => (b.v > a.v ? b : a));
+  $('styleRadar').innerHTML = `
+    <div class="rd-title">你的風格：<b>${top.title}</b></div>
+    <svg viewBox="0 0 ${S} ${S}" class="rd-svg">
+      <defs><linearGradient id="rdGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#FF4655" stop-opacity="0.55"/><stop offset="100%" stop-color="#C4B5FD" stop-opacity="0.35"/>
+      </linearGradient></defs>
+      ${grid}${spokes}
+      <g class="rd-shape"><polygon class="rd-area" points="${poly(i => R * axes[i].v)}"/>${dots}</g>
+      ${labels}
+    </svg>
+    <div class="an-note">滿格 = 爆頭 30%、ADR 170、首殺率 15%、存活率 45%、多殺率 20%</div>`;
 }
 
 function buildMatchCard(match, playerName, playerTag) {

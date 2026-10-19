@@ -208,16 +208,25 @@
 
     <!-- 玩家資料頭部（登入後顯示） -->
     <div id="profileHeader" class="profile-header hidden">
+      <!-- 玩家卡寬版圖當背景，左側加深漸層讓字讀得清楚 -->
+      <div id="profileBanner" class="profile-banner"></div>
+      <div id="profileBannerArt" class="profile-banner-art"></div>
+      <div class="profile-inner">
+      <div class="profile-avatar">
+        <img id="profileCard" class="profile-card" src="" alt="" onerror="this.style.display='none'">
+        <span id="profileLevel" class="profile-level hidden">--</span>
+      </div>
+      <div class="profile-player">
+        <div id="profileName" class="profile-playername">--</div>
+        <div id="profileTag" class="profile-playertag">--</div>
+      </div>
       <div class="profile-rank" onclick="openRankLadder()" title="點看段位階梯與百分位">
         <img id="profileRankIcon" class="rank-icon-large" src="" alt="rank" onerror="this.style.display='none'">
         <div class="profile-rank-text">
           <div id="profileTierName" class="tier-name">--</div>
           <div id="profileRR" class="tier-rr">-- RR</div>
+          <div class="tier-rr-bar"><i id="profileRRBar"></i></div>
         </div>
-      </div>
-      <div class="profile-player">
-        <div id="profileName" class="profile-playername">--</div>
-        <div id="profileTag" class="profile-playertag">--</div>
       </div>
       <div class="profile-currency">
         <div class="currency-item vp-item">
@@ -232,6 +241,7 @@
           <span id="profileRP" class="currency-val rp-val">--</span>
           <span class="currency-label">RP</span>
         </div>
+      </div>
       </div>
     </div>
 
@@ -300,6 +310,7 @@
         </div>
         <div class="an-hero-info">
           <div class="an-record" id="anRecord">--</div>
+          <div id="anInsights" class="an-insights"></div>
           <div class="an-top-agent">
             <img id="statTopAgentIcon" class="stat-agent-icon" src="" alt="" onerror="this.style.display='none'">
             <div>
@@ -314,6 +325,8 @@
         </div>
       </div>
       <div id="matchCharts" class="match-charts hidden">
+        <!-- 亮點三連卡：最佳一場 / 招牌特務 / 招牌槍 -->
+        <div id="anHighlights" class="an-highlights chart-panel-wide"></div>
         <!-- 數據卡 -->
         <div class="an-tiles chart-panel-wide">
           <div class="an-tile"><div class="an-tile-val" id="statAvgKDA">--</div><div class="stat-label">平均 K/D</div></div>
@@ -321,9 +334,9 @@
           <div class="an-tile"><div class="an-tile-val" id="statACS">--</div><div class="stat-label">平均 ACS</div></div>
           <div class="an-tile"><div class="an-tile-val" id="statHS">--%</div><div class="stat-label">爆頭率</div></div>
         </div>
-        <div class="chart-panel chart-panel-wide">
-          <div class="chart-title">最近對戰 K/D 走勢</div>
-          <div id="kdaTrend" class="kda-trend"></div>
+        <div class="chart-panel an-radar-panel">
+          <div class="chart-title">玩家風格</div>
+          <div id="styleRadar" class="style-radar"></div>
         </div>
         <div class="chart-panel">
           <div class="chart-title">攻守勝率</div>
@@ -334,16 +347,20 @@
           <div id="openingDuels"></div>
         </div>
         <div class="chart-panel chart-panel-wide">
+          <div class="chart-title">最近對戰 K/D 走勢</div>
+          <div id="kdaTrend" class="kda-trend"></div>
+        </div>
+        <div class="chart-panel chart-panel-wide">
           <div class="chart-title">多殺</div>
           <div id="multiKills" class="mk-grid"></div>
         </div>
-        <div class="chart-panel">
+        <div class="chart-panel chart-panel-wide">
           <div class="chart-title">特務戰績</div>
-          <div id="agentDist" class="bar-list"></div>
+          <div id="agentDist" class="agent-cards"></div>
         </div>
-        <div class="chart-panel">
+        <div class="chart-panel chart-panel-wide">
           <div class="chart-title">地圖勝率</div>
-          <div id="mapWinrate" class="bar-list"></div>
+          <div id="mapWinrate" class="map-cards"></div>
         </div>
         <div class="chart-panel chart-panel-wide">
           <div class="chart-title">武器擊殺分布</div>

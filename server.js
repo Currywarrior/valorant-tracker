@@ -1342,6 +1342,24 @@ app.get('/api/matches', async (req, res) => {
   }
 });
 
+// ─── GET /api/account（玩家卡圖與帳號等級，給頂部玩家列用） ───
+app.get('/api/account', async (req, res) => {
+  const { name, tag } = req.query;
+  if (!getRiot(req).region) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
+  if (!name || !tag || !HENRIK_API_KEY) return res.json({ error: 'UNAVAILABLE' });
+  try {
+    const r = await axios.get(
+      `https://api.henrikdev.xyz/valorant/v1/account/${encodeURIComponent(name)}/${encodeURIComponent(tag)}`,
+      { headers: { Authorization: HENRIK_API_KEY }, timeout: 10000 }
+    );
+    const d = r.data.data || {};
+    res.json({ level: d.account_level ?? null, cardSmall: d.card?.small || '', cardWide: d.card?.wide || '' });
+  } catch (err) {
+    console.error('[Account] Error:', err.response?.status || err.message);
+    res.json({ error: 'UNAVAILABLE' });   // 拿不到就維持原本沒有卡圖的樣子
+  }
+});
+
 // ─── GET /api/analysis（資料庫裡累積的對戰摘要） ───
 app.get('/api/analysis', async (req, res) => {
   if (!getRiot(req).region) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
