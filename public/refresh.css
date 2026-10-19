@@ -1105,3 +1105,78 @@ html { overflow-x: hidden; }
 }
 /* 招牌槍：裝備的造型名稱（造型沒裝就不顯示） */
 .hl-skin { position: relative; z-index: 1; margin-top: -4px; font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0.04em; color: var(--vp-color); text-shadow: 0 0 10px rgba(125, 211, 252, 0.45); }
+
+/* ═══════════════════════════════════════════════════════════
+   第 6 步：RR 走勢 + 最佳拍檔
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── RR 走勢：上方三格摘要，下方 elo 折線 + 每場加減柱狀 ─── */
+.rr-summary, .pt-split { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.rr-sum-item, .pt-split-item {
+  flex: 1 1 160px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+.rr-sum-val { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.rr-sum-val.up   { color: var(--win);  text-shadow: 0 0 14px rgba(52, 211, 153, 0.4); }
+.rr-sum-val.down { color: var(--loss); text-shadow: 0 0 14px rgba(248, 113, 113, 0.35); }
+.rr-now { display: flex; align-items: center; gap: 12px; }
+.rr-now img { width: 40px; height: 40px; filter: drop-shadow(0 0 10px rgba(60, 184, 196, 0.5)); }
+.rr-now .rr-sum-val { font-size: var(--fs-lg); }
+.rr-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.rr-band { stroke: rgba(255, 255, 255, 0.1); stroke-dasharray: 3 5; }
+.rr-band-label { fill: var(--text-dim); font-size: 11px; letter-spacing: 0.06em; }
+.rr-area { fill: url(#rrArea); }
+.rr-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(255, 70, 85, 0.6)); }
+.rr-dot { stroke: #0D0F16; stroke-width: 1.5; }
+.rr-dot.up, .rr-bar.up     { fill: var(--win); }
+.rr-dot.down, .rr-bar.down { fill: var(--loss); }
+.rr-mid { stroke: rgba(255, 255, 255, 0.18); }
+.rr-bar { opacity: 0.9; transition: opacity 0.2s; }
+.rr-bar:hover { opacity: 1; }
+
+/* ─── 最佳拍檔：頭像卡，第一名加紅框和角標 ─── */
+.pt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.pt-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--surface-raised), rgba(255, 255, 255, 0.02));
+  animation: fadeInUp 0.4s ease both;
+  transition: transform 0.25s, border-color 0.25s;
+}
+.pt-card:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+.pt-best {
+  border-color: rgba(255, 70, 85, 0.45);
+  background: radial-gradient(120% 140% at 0% 0%, rgba(255, 70, 85, 0.18), transparent 60%), var(--surface-raised);
+}
+.pt-avatar {
+  width: 52px; height: 52px;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.pt-info { flex: 1; min-width: 0; }
+.pt-name { font-size: var(--fs-md); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-name span { margin-left: 4px; font-size: var(--fs-xs); font-weight: 400; color: var(--text-dim); }
+.pt-wr { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; }
+.pt-wr.up   { color: var(--win); }
+.pt-wr.down { color: var(--loss); }
+.pt-badge {
+  position: absolute;
+  top: -9px; right: 12px;
+  padding: 1px 8px;
+  font-size: var(--fs-xs);
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(255, 70, 85, 0.6);
+}

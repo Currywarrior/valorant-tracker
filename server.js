@@ -1413,6 +1413,32 @@ app.get('/api/analysis', async (req, res) => {
   }
 });
 
+// ─── GET /api/rr?puuid=（牌位 RR 歷史：Henrik 最近 20 場 + 資料庫累積，舊 → 新） ───
+const fetchRR = async (shard, puuid) => {
+  const r = await axios.get(
+    `https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/${shard}/${puuid}`,
+    { headers: { Authorization: HENRIK_API_KEY }, timeout: 15000 }
+  );
+  return (r.data.data || []).map(e => matchStore.normalizeRR(e, puuid));
+};
+app.get('/api/rr', async (req, res) => {
+  const riot = getRiot(req);
+  if (!riot.region) return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
+  const { puuid } = req.query;
+  if (!puuid || !HENRIK_API_KEY) return res.status(400).json({ error: 'MISSING_PARAMS' });
+  let live = [];
+  try {
+    live = await fetchRR(toShard(riot.region), puuid);
+    matchStore.saveRR(live).catch(e => console.error('[RR] 存檔失敗:', e.message));
+  } catch (err) {
+    console.error('[RR] Error:', err.response?.status || err.message);
+  }
+  const stored = await matchStore.loadRR(puuid).catch(() => []);
+  const byId = new Map();
+  [...stored, ...live].forEach(e => byId.set(e.matchId, e));
+  res.json({ entries: [...byId.values()].sort((a, b) => a.date - b.date) });
+});
+
 // ─── GET /api/cron/collect?key=CRON_SECRET（定時幫登記過的玩家抓新場次） ───
 // cron-job.org 每 10 分鐘戳一次讓 Render 不休眠；真的去 Henrik 抓每 3 小時一輪就好
 const COLLECT_INTERVAL = 3 * 60 * 60 * 1000;
@@ -1433,7 +1459,9 @@ app.get('/api/cron/collect', async (req, res) => {
       );
       const summaries = (r.data.data || []).map(m => matchStore.summarize(m, p._id)).filter(Boolean);
       await matchStore.saveSummaries(summaries);
-      console.log(`[Collect] ${p.name}#${p.tag}: ${summaries.length} 場`);
+      const rr = await fetchRR(p.shard, p._id);
+      await matchStore.saveRR(rr);
+      console.log(`[Collect] ${p.name}#${p.tag}: ${summaries.length} 場、RR ${rr.length} 筆`);
     } catch (err) {
       console.error(`[Collect] ${p.name}#${p.tag} 失敗:`, err.response?.status || err.message);
     }

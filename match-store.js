@@ -76,7 +76,40 @@ function summarize(match, puuid) {
     damage: me.damage_made || 0,
     firstKills, firstDeaths, multi, sides,
     weapons: Object.values(weapons),
+    // 同一個 party_id 的隊友；空陣列 = 單排（舊紀錄沒有這個欄位，統計時要跳過）
+    partyMates: (match.players?.all_players || [])
+      .filter(p => p.party_id && p.party_id === me.party_id && p.puuid !== puuid)
+      .map(p => ({ puuid: p.puuid, name: p.name, tag: p.tag, card: p.player_card || '' })),
   };
+}
+
+// Henrik mmr-history 一筆 → 存檔格式
+function normalizeRR(e, puuid) {
+  return {
+    _id: `${e.match_id}|${puuid}`,
+    matchId: e.match_id,
+    puuid,
+    date: e.date_raw,
+    tier: e.currenttier,
+    tierName: e.currenttierpatched,
+    tierIcon: e.images?.small || '',
+    rr: e.ranking_in_tier,
+    change: e.mmr_change_to_last_game,
+    elo: e.elo,
+    map: e.map?.name || '',
+  };
+}
+
+async function saveRR(entries) {
+  if (!db || !entries.length) return;
+  await db.collection('rr_history').bulkWrite(entries.map(e => ({
+    replaceOne: { filter: { _id: e._id }, replacement: e, upsert: true }
+  })));
+}
+
+async function loadRR(puuid) {
+  if (!db) return [];
+  return db.collection('rr_history').find({ puuid }).sort({ date: 1 }).toArray();
 }
 
 // 存摘要並記下玩家（定時抓取要知道幫誰抓）；沒接資料庫就略過
@@ -106,4 +139,4 @@ async function listPlayers() {
   return db.collection('players').find().toArray();
 }
 
-module.exports = { summarize, saveSummaries, loadSummaries, listPlayers, isEnabled: () => !!db };
+module.exports = { summarize, saveSummaries, loadSummaries, listPlayers, normalizeRR, saveRR, loadRR, isEnabled: () => !!db };

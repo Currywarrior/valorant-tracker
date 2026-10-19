@@ -1264,11 +1264,117 @@ async function loadAnalysis(data) {
   const all = [...byId.values()].sort((a, b) => b.startedAt - a.startedAt);
   // 招牌槍要顯示自己裝備的造型；只抓一次，失敗就用預設槍圖
   if (!state.loadout) state.loadout = (await apiFetch('/api/loadout').catch(() => null))?.guns || {};
+  const rr = data.puuid
+    ? ((await apiFetch(`/api/rr?puuid=${encodeURIComponent(data.puuid)}`).catch(() => null))?.entries || [])
+    : [];
   const oldest = all[all.length - 1];
   $('analysisHint').textContent = stored.length && oldest?.startedAt
     ? `累積 ${all.length} 場（${new Date(oldest.startedAt * 1000).toLocaleDateString('zh-TW')} 起，不含死鬥）`
     : `最近 ${all.length} 場（不含死鬥）`;
   renderMatchStats(all);
+  renderRRTrend(rr);
+}
+
+// RR 走勢：上面是 elo 折線（段位交界畫虛線、標段位圖示），下面是每場加減 RR 的柱狀；entries 舊 → 新
+function renderRRTrend(entries) {
+  const el = $('rrTrend');
+  if (entries.length < 2) {
+    el.innerHTML = '<div class="kda-trend-empty">還沒有足夠的排位紀錄</div>';
+    return;
+  }
+  const W = Math.max(320, el.clientWidth || Math.min(innerWidth, 1400) - 100);
+  const H = 190, barH = 56, padX = 16, padTop = 18, gap = 18;
+  const n = entries.length;
+  const elos = entries.map(e => e.elo);
+  const lo = Math.floor((Math.min(...elos) - 10) / 100) * 100;
+  const hi = Math.ceil((Math.max(...elos) + 10) / 100) * 100;
+  const x = i => padX + (i * (W - 2 * padX)) / (n - 1);
+  const y = v => padTop + (1 - (v - lo) / (hi - lo)) * (H - padTop - 8);
+  const pts = entries.map((e, i) => `${x(i).toFixed(1)},${y(e.elo).toFixed(1)}`);
+  // 每 100 elo 一個段位：交界畫虛線，線上方標那個段位的圖示和名稱（名稱取自實際出現過的紀錄）
+  const tierAt = {};
+  entries.forEach(e => { tierAt[Math.floor(e.elo / 100) * 100] = e; });
+  let bands = '';
+  for (let b = lo; b < hi; b += 100) {
+    const t = tierAt[b];
+    bands += `<line class="rr-band" x1="${padX}" x2="${W - padX}" y1="${y(b).toFixed(1)}" y2="${y(b).toFixed(1)}"/>`;
+    if (t) {
+      bands += `${t.tierIcon ? `<image href="${t.tierIcon}" x="${padX}" y="${(y(b + 100) + 4).toFixed(1)}" width="22" height="22"/>` : ''}
+        <text class="rr-band-label" x="${padX + 28}" y="${(y(b + 100) + 19).toFixed(1)}">${t.tierName}</text>`;
+    }
+  }
+  const maxAbs = Math.max(10, ...entries.map(e => Math.abs(e.change || 0)));
+  const barTop = H + gap, mid = barTop + barH / 2, bw = Math.max(4, Math.min(18, (W - 2 * padX) / n * 0.6));
+  const bars = entries.map((e, i) => {
+    const h = (Math.abs(e.change || 0) / maxAbs) * (barH / 2);
+    const up = (e.change || 0) >= 0;
+    const d = new Date(e.date * 1000);
+    return `<rect class="rr-bar ${up ? 'up' : 'down'}" x="${(x(i) - bw / 2).toFixed(1)}" y="${(up ? mid - h : mid).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" rx="2">
+      <title>${d.getMonth() + 1}/${d.getDate()} ${e.map}：${up ? '+' : ''}${e.change} RR（${e.tierName} ${e.rr}）</title></rect>`;
+  }).join('');
+  const dots = entries.map((e, i) =>
+    `<circle class="rr-dot ${(e.change || 0) >= 0 ? 'up' : 'down'}" cx="${x(i).toFixed(1)}" cy="${y(e.elo).toFixed(1)}" r="3.5"><title>${e.tierName} ${e.rr} RR（${e.change >= 0 ? '+' : ''}${e.change}）</title></circle>`
+  ).join('');
+
+  // 摘要：淨增減、最長連勝、目前段位
+  const net = entries.reduce((s, e) => s + (e.change || 0), 0);
+  let best = 0, run = 0;
+  entries.forEach(e => { run = e.change > 0 ? run + 1 : 0; best = Math.max(best, run); });
+  const last = entries[n - 1];
+  el.innerHTML = `
+    <div class="rr-summary">
+      <div class="rr-sum-item"><div class="rr-sum-val ${net >= 0 ? 'up' : 'down'}">${net >= 0 ? '+' : ''}${net}</div><div class="stat-label">最近 ${n} 場淨 RR</div></div>
+      <div class="rr-sum-item"><div class="rr-sum-val">${best}</div><div class="stat-label">最長連勝</div></div>
+      <div class="rr-sum-item rr-now">${last.tierIcon ? `<img src="${last.tierIcon}" alt="">` : ''}<div><div class="rr-sum-val">${last.tierName}</div><div class="stat-label">目前 ${last.rr} RR</div></div></div>
+    </div>
+    <svg viewBox="0 0 ${W} ${barTop + barH}" class="rr-svg">
+      <defs><linearGradient id="rrArea" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#FF4655" stop-opacity="0.32"/><stop offset="100%" stop-color="#FF4655" stop-opacity="0"/>
+      </linearGradient></defs>
+      ${bands}
+      <path class="rr-area" d="M${x(0).toFixed(1)},${H} L${pts.join(' L')} L${x(n - 1).toFixed(1)},${H} Z"/>
+      <path class="rr-line" d="M${pts.join(' L')}"/>
+      ${dots}
+      <line class="rr-mid" x1="${padX}" x2="${W - padX}" y1="${mid}" y2="${mid}"/>
+      ${bars}
+    </svg>
+    <div class="kda-axis"><span>較舊</span><span>上：段位分數　下：每場加減 RR</span><span>最新</span></div>`;
+}
+
+// 最佳拍檔：同隊伍組隊的人依場次排序；舊紀錄沒有 partyMates 欄位就跳過不算
+function renderPartners(summaries) {
+  const known = summaries.filter(m => Array.isArray(m.partyMates));
+  const solo = known.filter(m => m.partyMates.length === 0);
+  const party = known.filter(m => m.partyMates.length > 0);
+  const mates = {};
+  party.forEach(m => m.partyMates.forEach(p => {
+    const s = mates[p.puuid] || (mates[p.puuid] = { name: p.name, tag: p.tag, card: p.card, games: 0, wins: 0 });
+    s.games++;
+    if (m.result === 'win') s.wins++;
+  }));
+  const arr = Object.values(mates).sort((a, b) => b.games - a.games || wrOf(b) - wrOf(a)).slice(0, 6);
+  const wrTxt = list => (list.length ? `${Math.round((list.filter(m => m.result === 'win').length / list.length) * 100)}%` : '--');
+  const missing = summaries.length - known.length;
+  $('partners').innerHTML = known.length === 0
+    ? '<div class="kda-trend-empty">組隊資料要等新場次存進來才會有（自動抓取每 3 小時一次）</div>'
+    : `
+    <div class="pt-split">
+      <div class="pt-split-item"><div class="rr-sum-val">${wrTxt(solo)}</div><div class="stat-label">單排勝率 · ${solo.length} 場</div></div>
+      <div class="pt-split-item"><div class="rr-sum-val">${wrTxt(party)}</div><div class="stat-label">組隊勝率 · ${party.length} 場</div></div>
+    </div>
+    <div class="pt-cards">
+      ${arr.map((p, i) => `
+        <div class="pt-card${i === 0 ? ' pt-best' : ''}" style="animation-delay:${i * 60}ms">
+          ${p.card ? `<img class="pt-avatar" src="https://media.valorant-api.com/playercards/${p.card}/smallart.png" alt="">` : '<div class="pt-avatar"></div>'}
+          <div class="pt-info">
+            <div class="pt-name">${p.name}<span>#${p.tag}</span></div>
+            <div class="stat-label">一起 ${p.games} 場</div>
+          </div>
+          <div class="pt-wr ${wrOf(p) >= 50 ? 'up' : 'down'}">${wrOf(p)}%</div>
+          ${i === 0 ? '<div class="pt-badge">最常一起</div>' : ''}
+        </div>`).join('') || '<div class="kda-trend-empty">最近都是單排</div>'}
+    </div>
+    ${missing ? `<div class="an-note">有 ${missing} 場舊紀錄沒有組隊資料，沒算進去</div>` : ''}`;
 }
 
 // 計算統計數據並渲染到 #matchStats；summaries 由後端 match-store.js 的 summarize() 產生
@@ -1402,6 +1508,7 @@ function renderMatchStats(summaries) {
   renderWeaponDist(weaponStats);
   renderInsights({ sides, mapStats, firstKills, firstDeaths });
   renderHighlights(summaries, agentStats, weaponStats);
+  renderPartners(summaries);
   renderStyleRadar({
     hsPct,
     adr: totalRounds > 0 ? Math.round(totalDamage / totalRounds) : 0,
@@ -1657,6 +1764,8 @@ function buildMatchCard(match, playerName, playerTag) {
   const { kills = 0, deaths = 0, assists = 0, score: cs = 0 } = me.stats || {};
   const blueScore = teams.blue?.rounds_won ?? '-';
   const redScore = teams.red?.rounds_won ?? '-';
+  // ACS = 整場戰鬥分數 ÷ 回合數（遊戲結算畫面顯示的就是這個）
+  const rounds = (teams.blue?.rounds_won || 0) + (teams.red?.rounds_won || 0);
   const mapName = match.metadata?.map || 'Unknown';
   const mode = match.metadata?.mode || '';
   // 有開局時間戳就排成「10/6 週二 15:21」，沒有才用 API 給的英文長字串
@@ -1699,7 +1808,7 @@ function buildMatchCard(match, playerName, playerTag) {
       </div>
       <div class="kda-label">K / D / A</div>
       <div class="kda-ratio-label">K/D ${kdDisplay}</div>
-      <div class="cs-label">Score ${cs.toLocaleString()}</div>
+      <div class="cs-label">ACS ${rounds > 0 ? Math.round(cs / rounds) : 0}</div>
     </div>
     <div class="match-info-area">
       <div class="map-label">${mapName}</div>
