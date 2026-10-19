@@ -1303,3 +1303,29 @@ html { overflow-x: hidden; }
 @media (max-width: 900px) {
   #analysisTab .an-hero-art { left: 50%; transform: translateX(-50%); opacity: 0.18; }
 }
+
+/* ─── 經濟局勝率：四張卡由少到多，頂端色條越來越飽和；底部細條 = 勝率、白線 = 50% ─── */
+.ec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ec-card {
+  position: relative;
+  overflow: hidden;
+  padding: 16px 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  animation: fadeInUp 0.4s ease both;
+}
+.ec-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--theme); }
+.ec-pistol::before { opacity: 0.3; }
+.ec-eco::before    { opacity: 0.5; }
+.ec-half::before   { opacity: 0.75; }
+.ec-full { background: radial-gradient(120% 120% at 100% 0%, rgba(var(--theme-rgb), 0.16), transparent 60%), var(--surface-raised); }
+.ec-name { font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); letter-spacing: 0.06em; }
+.ec-wr { font-family: 'Rajdhani', sans-serif; font-size: 32px; font-weight: 700; line-height: 1.15; }
+.ec-wr.up   { color: var(--win);  text-shadow: 0 0 14px rgba(52, 211, 153, 0.4); }
+.ec-wr.down { color: var(--loss); text-shadow: 0 0 14px rgba(248, 113, 113, 0.35); }
+.ec-rule { margin-top: 8px; font-size: var(--fs-xs); color: var(--text-dim); }
+.ec-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, 0.07); }
+.ec-bar i { display: block; height: 100%; background: linear-gradient(90deg, rgba(var(--theme-rgb), 0.5), var(--theme)); box-shadow: 0 0 8px rgba(var(--theme-rgb), 0.7); }
+.ec-bar b { position: absolute; left: 50%; top: -3px; bottom: 0; width: 1px; background: rgba(255, 255, 255, 0.45); }
+@media (max-width: 700px) { .ec-grid { grid-template-columns: repeat(2, 1fr); } }

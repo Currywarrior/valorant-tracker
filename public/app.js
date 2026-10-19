@@ -1418,6 +1418,8 @@ function renderMatchStats(summaries) {
   let draws = 0, totalDamage = 0, firstKills = 0, firstDeaths = 0;
   const multi = { 2: 0, 3: 0, 4: 0, 5: 0 };   // 單回合殺 2/3/4/5 人的次數
   const sides = { atk: { rounds: 0, wins: 0 }, def: { rounds: 0, wins: 0 } };
+  const econ = { pistol: { rounds: 0, wins: 0 }, eco: { rounds: 0, wins: 0 }, half: { rounds: 0, wins: 0 }, full: { rounds: 0, wins: 0 } };
+  let econMatches = 0;
   const weaponStats = {};  // 武器 -> { kills, icon }
   const agentStats = {};  // agent -> { games, wins, kills, deaths, icon, bust }
   const mapStats = {};    // map   -> { games, wins }
@@ -1444,6 +1446,14 @@ function renderMatchStats(summaries) {
       sides[k].rounds += m.sides[k].rounds;
       sides[k].wins += m.sides[k].wins;
     });
+    // 經濟局是後來才加的欄位，舊紀錄沒有就跳過
+    if (m.econ) {
+      econMatches++;
+      Object.keys(econ).forEach(k => {
+        econ[k].rounds += m.econ[k].rounds;
+        econ[k].wins += m.econ[k].wins;
+      });
+    }
     m.weapons.forEach(w => {
       const ws = weaponStats[w.name] || (weaponStats[w.name] = { kills: 0, icon: w.icon });
       ws.kills += w.kills;
@@ -1534,6 +1544,7 @@ function renderMatchStats(summaries) {
   renderMapWinrate(mapStats);
   renderSideWinrate(sides);
   renderOpeningDuels(firstKills, firstDeaths, totalRounds);
+  renderEconWinrate(econ, summaries.length - econMatches);
   renderMultiKills(multi);
   renderWeaponDist(weaponStats);
   renderInsights({ sides, mapStats, firstKills, firstDeaths });
@@ -1609,6 +1620,37 @@ function renderOpeningDuels(fk, fd, rounds) {
     </div>
     <div class="duel-bar"><div class="duel-fk" style="width:${pct}%"></div><div class="duel-fd"></div></div>
     <div class="an-note">每回合第一個倒下的人；你參與了 ${rounds ? Math.round((total / rounds) * 100) : 0}% 回合的開局對槍</div>`;
+}
+
+// 經濟局勝率：四張卡依裝備由少到多排，底部細條 = 勝率，中線 = 50%
+function renderEconWinrate(econ, missing) {
+  const kinds = [
+    { key: 'pistol', name: '手槍局', rule: '上下半場第一回合' },
+    { key: 'eco',    name: '省錢局', rule: '全隊裝備 < 10,000' },
+    { key: 'half',   name: '半起局', rule: '全隊裝備 10,000 ~ 19,999' },
+    { key: 'full',   name: '全起局', rule: '全隊裝備 ≥ 20,000' },
+  ];
+  const total = kinds.reduce((n, k) => n + econ[k.key].rounds, 0);
+  if (total === 0) {
+    $('econWinrate').innerHTML = '<div class="kda-trend-empty">經濟資料要等新場次存進來才會有（自動抓取每 3 小時一次）</div>';
+    return;
+  }
+  $('econWinrate').innerHTML = `
+    <div class="ec-grid">
+      ${kinds.map((k, i) => {
+        const s = econ[k.key];
+        const wr = s.rounds ? Math.round((s.wins / s.rounds) * 100) : 0;
+        return `
+          <div class="ec-card ec-${k.key}" style="animation-delay:${i * 60}ms">
+            <div class="ec-name">${k.name}</div>
+            <div class="ec-wr ${s.rounds ? (wr >= 50 ? 'up' : 'down') : ''}">${s.rounds ? `${wr}%` : '--'}</div>
+            <div class="stat-label">${s.wins} 勝 / ${s.rounds} 回合</div>
+            <div class="ec-rule">${k.rule}</div>
+            <div class="ec-bar"><i style="width:${wr}%"></i><b></b></div>
+          </div>`;
+      }).join('')}
+    </div>
+    <div class="an-note">裝備價值算的是你們整隊 5 個人加總；只算排位與一般模式${missing ? `，有 ${missing} 場舊紀錄沒有經濟資料，沒算進去` : ''}</div>`;
 }
 
 // 多殺徽章：2K → ACE 顏色逐級升高，ACE 金色

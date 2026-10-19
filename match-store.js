@@ -31,6 +31,8 @@ function summarize(match, puuid) {
   let firstKills = 0, firstDeaths = 0;
   const multi = { 2: 0, 3: 0, 4: 0, 5: 0 };
   const sides = { atk: { rounds: 0, wins: 0 }, def: { rounds: 0, wins: 0 } };
+  // 經濟局：手槍局看回合位置，其餘看全隊 5 人裝備價值加總（< 1 萬省錢、< 2 萬半起、其餘全起）
+  const econ = { pistol: { rounds: 0, wins: 0 }, eco: { rounds: 0, wins: 0 }, half: { rounds: 0, wins: 0 }, full: { rounds: 0, wins: 0 } };
   const killsByRound = {};
   (match.kills || []).forEach(k => (killsByRound[k.round] ||= []).push(k));
   const hasSides = ['competitive', 'unrated', 'premier'].includes(mode.toLowerCase());
@@ -48,6 +50,14 @@ function summarize(match, puuid) {
       const side = (i < 12) === (myTeam === 'red') ? 'atk' : 'def';
       sides[side].rounds++;
       if (r.winning_team?.toLowerCase() === myTeam) sides[side].wins++;
+    }
+    if (hasSides) {
+      const teamValue = (r.player_stats || [])
+        .filter(ps => ps.player_team?.toLowerCase() === myTeam)
+        .reduce((s, ps) => s + (ps.economy?.loadout_value || 0), 0);
+      const kind = (i === 0 || i === 12) ? 'pistol' : teamValue < 10000 ? 'eco' : teamValue < 20000 ? 'half' : 'full';
+      econ[kind].rounds++;
+      if (r.winning_team?.toLowerCase() === myTeam) econ[kind].wins++;
     }
   });
 
@@ -74,7 +84,7 @@ function summarize(match, puuid) {
     kills, deaths, assists, score, headshots, bodyshots, legshots,
     rounds: (teams.blue?.rounds_won || 0) + (teams.red?.rounds_won || 0),
     damage: me.damage_made || 0,
-    firstKills, firstDeaths, multi, sides,
+    firstKills, firstDeaths, multi, sides, econ,
     weapons: Object.values(weapons),
     // 同一個 party_id 的隊友；空陣列 = 單排（舊紀錄沒有這個欄位，統計時要跳過）
     partyMates: (match.players?.all_players || [])
