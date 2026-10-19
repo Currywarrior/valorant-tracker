@@ -300,6 +300,7 @@ async function handleLogout() {
   $('storeGrid').innerHTML = '';
   $('matchesList').innerHTML = '';
   $('analysisMsg').classList.remove('hidden');
+  state.loadout = null;
   $('historyList').innerHTML = '';
   $('collectionGrid').innerHTML = '';
   $('collectionCount').textContent = '';
@@ -1261,6 +1262,8 @@ async function loadAnalysis(data) {
   const byId = new Map();
   [...stored, ...live].forEach(s => byId.set(s.matchId, s));
   const all = [...byId.values()].sort((a, b) => b.startedAt - a.startedAt);
+  // 招牌槍要顯示自己裝備的造型；只抓一次，失敗就用預設槍圖
+  if (!state.loadout) state.loadout = (await apiFetch('/api/loadout').catch(() => null))?.guns || {};
   const oldest = all[all.length - 1];
   $('analysisHint').textContent = stored.length && oldest?.startedAt
     ? `累積 ${all.length} 場（${new Date(oldest.startedAt * 1000).toLocaleDateString('zh-TW')} 起，不含死鬥）`
@@ -1565,6 +1568,9 @@ function renderHighlights(summaries, agentStats, weaponStats) {
   const [agentName, ag] = Object.entries(agentStats).sort((a, b) => b[1].games - a[1].games)[0];
   const gun = Object.entries(weaponStats).filter(([n]) => n !== '技能／其他').sort((a, b) => b[1].kills - a[1].kills)[0];
   const totalKills = Object.values(weaponStats).reduce((n, w) => n + w.kills, 0);
+  // 擊殺圖示網址裡帶著武器 uuid（.../weapons/{uuid}/killstreamicon.png），拿來對裝備的造型
+  const gunUuid = gun?.[1].icon.match(/weapons\/([0-9a-f-]+)\//)?.[1];
+  const skin = state.loadout?.[gunUuid];
   const date = new Date(mvp.startedAt * 1000);
   $('anHighlights').innerHTML = `
     <div class="hl-card hl-mvp"${state.maps[mvp.map] ? ` style="background-image:url('${state.maps[mvp.map]}')"` : ''}>
@@ -1586,8 +1592,9 @@ function renderHighlights(summaries, agentStats, weaponStats) {
     <div class="hl-card hl-gun">
       <div class="hl-label">招牌槍</div>
       ${gun ? `
-        <img class="hl-gun-art" src="${gun[1].icon.replace('killstreamicon.png', 'displayicon.png')}" alt="">
+        <img class="hl-gun-art" src="${skin?.icon || gun[1].icon.replace('killstreamicon.png', 'displayicon.png')}" alt="">
         <div class="hl-big">${gun[0]}</div>
+        ${skin ? `<div class="hl-skin">${skin.skinName}</div>` : ''}
         <div class="hl-sub">${gun[1].kills} 殺 · 佔你全部擊殺 <b>${Math.round((gun[1].kills / totalKills) * 100)}%</b></div>`
         : '<div class="hl-sub">還沒有用槍的擊殺紀錄</div>'}
     </div>`;

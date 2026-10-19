@@ -1103,3 +1103,5 @@ html { overflow-x: hidden; }
   .agent-cards { grid-template-columns: repeat(2, 1fr); }
   .map-cards { grid-template-columns: 1fr; }
 }
+/* 招牌槍：裝備的造型名稱（造型沒裝就不顯示） */
+.hl-skin { position: relative; z-index: 1; margin-top: -4px; font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0.04em; color: var(--vp-color); text-shadow: 0 0 10px rgba(125, 211, 252, 0.45); }

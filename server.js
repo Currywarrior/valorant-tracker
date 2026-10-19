@@ -1342,6 +1342,34 @@ app.get('/api/matches', async (req, res) => {
   }
 });
 
+// ─── GET /api/loadout（每把槍目前裝備的造型，給分析頁招牌槍用） ───
+app.get('/api/loadout', async (req, res) => {
+  const riot = getRiot(req);
+  if (!riot.accessToken || riot.expiresAt <= Date.now())
+    return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
+  try {
+    const [loadoutRes] = await Promise.all([
+      axios.get(
+        `https://pd.${toShard(riot.region)}.a.pvp.net/personalization/v2/players/${riot.puuid}/playerloadout`,
+        { headers: await makeHeaders(riot), timeout: 8000 }
+      ),
+      buildSkinCache(),
+    ]);
+    // 預設槍不在造型快取裡（buildSkinCache 跳過預設主題），查不到就不回，前端維持原本的槍圖
+    const guns = {};
+    for (const g of loadoutRes.data?.Guns || []) {
+      const level = skinLevelCache.levels[g.SkinLevelID?.toLowerCase()];
+      if (!level) continue;
+      const chroma = skinLevelCache.chromaByUuid[g.ChromaID?.toLowerCase()];
+      guns[g.ID.toLowerCase()] = { skinName: level.skinName, icon: chroma?.icon || level.icon };
+    }
+    res.json({ guns });
+  } catch (err) {
+    console.error('[Loadout] Error:', err.response?.status || err.message);
+    res.json({ guns: {} });
+  }
+});
+
 // ─── GET /api/account（玩家卡圖與帳號等級，給頂部玩家列用） ───
 app.get('/api/account', async (req, res) => {
   const { name, tag } = req.query;
