@@ -1348,13 +1348,24 @@ app.get('/api/loadout', async (req, res) => {
   if (!riot.accessToken || riot.expiresAt <= Date.now())
     return res.status(401).json({ error: 'NOT_AUTHENTICATED' });
   try {
-    const [loadoutRes] = await Promise.all([
-      axios.get(
-        `https://pd.${toShard(riot.region)}.a.pvp.net/personalization/v2/players/${riot.puuid}/playerloadout`,
-        { headers: await makeHeaders(riot), timeout: 8000 }
-      ),
-      buildSkinCache(),
-    ]);
+    // v2 在正式站回 404，不確定是不是改版了：v3、v2 依序試，記下每個版本的狀態碼
+    const headers = await makeHeaders(riot);
+    const tried = {};
+    let loadoutRes = null;
+    for (const ver of ['v3', 'v2']) {
+      try {
+        loadoutRes = await axios.get(
+          `https://pd.${toShard(riot.region)}.a.pvp.net/personalization/${ver}/players/${riot.puuid}/playerloadout`,
+          { headers, timeout: 8000 }
+        );
+        tried[ver] = loadoutRes.status;
+        break;
+      } catch (e) {
+        tried[ver] = e.response?.status || e.message;
+      }
+    }
+    if (!loadoutRes) return res.json({ guns: {}, error: 'ALL_FAILED', tried });
+    await buildSkinCache();
     // 預設槍不在造型快取裡（buildSkinCache 跳過預設主題），查不到就不回，前端維持原本的槍圖
     const guns = {};
     const rawGuns = loadoutRes.data?.Guns || [];
@@ -1365,7 +1376,7 @@ app.get('/api/loadout', async (req, res) => {
       guns[g.ID.toLowerCase()] = { skinName: level.skinName, icon: chroma?.icon || level.icon };
     }
     // checked / matched 方便從外面判斷是 Riot 沒給資料，還是造型對不上
-    res.json({ guns, checked: rawGuns.length, matched: Object.keys(guns).length });
+    res.json({ guns, checked: rawGuns.length, matched: Object.keys(guns).length, tried });
   } catch (err) {
     console.error('[Loadout] Error:', err.response?.status || err.message);
     res.json({ guns: {}, error: String(err.response?.status || err.message) });
